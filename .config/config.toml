@@ -1,0 +1,3 @@
+[paths]
+database = "database"
+connections = "database/connections"
