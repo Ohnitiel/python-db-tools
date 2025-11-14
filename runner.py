@@ -111,14 +111,16 @@ class DBConnectionRunner(DBConnectionManager):
             future_results = {}
             for connection, config in self.connections.items():
                 future = executor.submit(self.execute_query, query, connection, commit)
-                future_results[connection] = config["name"]
+                future_results[future] = config["name"]
 
             for future in as_completed(future_results):
-                result = future.result()
                 connection = future_results[future]
+                result = future.result()
 
-                if result["sucess"]:
-                    data[connection] = result["data"]
+                if result["success"]:
+                    data[connection] = pd.DataFrame(
+                        result["data"], columns=result["columns"]
+                    )
                 else:
                     failed_extractions[connection] = result["error"]
 
