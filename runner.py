@@ -10,6 +10,10 @@ from manager import DBConnectionManager
 
 
 class DBConnectionRunner(DBConnectionManager):
+    """
+    Runs queries on multiple database connections.
+    """
+
     max_workers: int
     save_path: Optional[Path]
     file_format: Optional[str]
@@ -17,13 +21,24 @@ class DBConnectionRunner(DBConnectionManager):
 
     def __init__(
         self: "DBConnectionRunner",
+        environment: str,
         connections: list[str] = [],
         max_workers: int = 8,
         save_path: Optional[Path] = None,
         file_format: Optional[str] = None,
         **kwargs,
     ):
-        super().__init__(connections)
+        """
+        Initializes a new DBConnectionRunner object.
+
+        Args:
+            connections: A list of connection names to run queries on.
+            max_workers: The maximum number of threads to use.
+            save_path: The path to save the results to.
+            file_format: The format to save the results in.
+            **kwargs: Additional keyword arguments to pass to the file export function.
+        """
+        super().__init__(environment, connections)
         self.max_workers = max_workers
         self.save_path = save_path
         self.file_format = file_format
@@ -32,6 +47,17 @@ class DBConnectionRunner(DBConnectionManager):
     def execute_query(
         self: "DBConnectionRunner", query: str, connection: str, commit: bool = False
     ) -> dict[str, Any]:
+        """
+        Executes a query on a single database connection.
+
+        Args:
+            query: The query to execute.
+            connection: The name of the connection to execute the query on.
+            commit: Whether to commit the transaction.
+
+        Returns:
+            A dictionary containing the results of the query.
+        """
         try:
             with self.engines[connection].connect() as conn:
                 cursor = conn.execute(text(query))
@@ -56,12 +82,25 @@ class DBConnectionRunner(DBConnectionManager):
         add_connection_column: bool = True,
         connection_column_name: str = "connection",
     ) -> tuple[pd.DataFrame, dict]:
+        """
+        Executes a query on multiple database connections.
+
+        Args:
+            query: The query to execute.
+            commit: Whether to commit the transaction.
+            parallel: Whether to execute the queries in parallel.
+            add_connection_column: Whether to add a column with the connection name to the results.
+            connection_column_name: The name of the connection column.
+
+        Returns:
+            A tuple containing a DataFrame with the results and a dictionary with any errors that occurred.
+        """
         data = {}
         failed_extractions = {}
         if not parallel:
             for connection, config in self.connections.items():
                 result = self.execute_query(query, connection, commit)
-                if result["sucess"]:
+                if result["success"]:
                     data[config["name"]] = pd.DataFrame(
                         result["data"], columns=result["columns"]
                     )
@@ -97,6 +136,15 @@ class DBConnectionRunner(DBConnectionManager):
         format: Optional[str] = None,
         **kwargs,
     ) -> None:
+        """
+        Exports a DataFrame to a file.
+
+        Args:
+            df: The DataFrame to export.
+            save_path: The path to save the file to.
+            format: The format to save the file in.
+            **kwargs: Additional keyword arguments to pass to the file export function.
+        """
         if format is None:
             format = save_path.suffix.lstrip(".")
 
@@ -112,5 +160,5 @@ if __name__ == "__main__":
     from dotenv import load_dotenv
 
     load_dotenv()
-    d = DBConnectionRunner()
+    d = DBConnectionRunner("staging")
     print(d.connections)

@@ -11,11 +11,23 @@ from lib.types import Struct
 
 
 class DBConnectionManager:
+    """
+    Manages database connections.
+    """
+
     configurations: Struct[Any]
     connections: Struct[Any]
     engines: Struct[Engine]
 
-    def __init__(self: "DBConnectionManager", connections: list[str] = []):
+    def __init__(
+        self: "DBConnectionManager", environment: str, connections: list[str] = []
+    ):
+        """
+        Initializes a new DBConnectionManager object.
+
+        Args:
+            connections: A list of connection names to manage.
+        """
         self.configurations = self._load_config()
         self.connections = self._get_gonnections()
 
@@ -23,11 +35,17 @@ class DBConnectionManager:
             self._filter_connections(connections)
 
         for connection, config in self.connections.items():
-            config.connstring = self._build_connstring(config)
+            config.connstring = self._build_connstring(config, environment)
 
         self.engines = self._create_engines()
 
     def _load_config(self: "DBConnectionManager") -> Struct:
+        """
+        Loads the configuration from the config.toml file.
+
+        Returns:
+            A Struct object containing the configuration.
+        """
         root: Path = find_root_dir(["pyproject.toml"])
         config_path: Path = root / ".config/config.toml"
 
@@ -42,6 +60,12 @@ class DBConnectionManager:
         return configurations
 
     def _get_gonnections(self: "DBConnectionManager") -> Struct:
+        """
+        Gets the database connections from the .config/database/connections directory.
+
+        Returns:
+            A Struct object containing the database connections.
+        """
         config_path: Path = self.configurations.paths.connections
 
         connections = Struct()
@@ -49,17 +73,28 @@ class DBConnectionManager:
             with open(connection_path, "rb") as f:
                 connection = Struct(tomllib.load(f))
 
-            connections.update(connection)
+            connections.update(connection.connections)
 
         for connection, information in connections.items():
-            for key, value in information.items():
-                if key == "password" and value.startswith("${") and value.endswith("}"):
-                    env_var = value[2:-1]
-                    information[key] = os.environ[env_var]
+            connections[connection] = self._resolve_passwords(information)
 
         return connections
 
+    def _resolve_passwords(self: "DBConnectionManager", info: Any):
+        if isinstance(info, dict):
+            return Struct({k: self._resolve_passwords(v) for k, v in info.items()})
+        elif info == "password" and info.startswith("${") and info.endswith("}"):
+            env_var = info[2:-1]
+            return os.environ[env_var]
+        return info
+
     def _filter_connections(self: "DBConnectionManager", connections: list[str]):
+        """
+        Filters the connections to only include the ones specified in the connections list.
+
+        Args:
+            connections: A list of connection names to keep.
+        """
         self.connections = Struct(
             {
                 key: value
@@ -68,13 +103,24 @@ class DBConnectionManager:
             }
         )
 
-    def _build_connstring(self: "DBConnectionManager", config: Struct) -> str:
+    def _build_connstring(
+        self: "DBConnectionManager", config: Struct, environment: str
+    ) -> str:
+        """
+        Builds a connection string from a configuration Struct.
+
+        Args:
+            config: A Struct object containing the connection configuration.
+
+        Returns:
+            A connection string.
+        """
         db_type = config.type
-        host = config.host
+        host = config[environment].host
         port = config.port
         database = config.database
-        username = config.username
-        password = config.password
+        username = getattr(config[environment], "username", config.get("username"))
+        password = getattr(config[environment], "password", config.get("password"))
         connection = f"{username}:{password}@{host}:{port}/{database}"
 
         if db_type == "postgresql":
@@ -83,6 +129,12 @@ class DBConnectionManager:
             raise NotImplementedError(f"Connection type '{db_type}' not implemented!")
 
     def _create_engines(self: "DBConnectionManager") -> Struct:
+        """
+        Creates SQLAlchemy engines for all the connections.
+
+        Returns:
+            A Struct object containing the SQLAlchemy engines.
+        """
         engines = Struct()
         for connection, config in self.connections.items():
             engines[connection] = create_engine(config.connstring)
@@ -90,6 +142,9 @@ class DBConnectionManager:
         return engines
 
     def close_all(self: "DBConnectionManager"):
+        """
+        Closes all the database connections.
+        """
         for engine in self.engines.values():
             engine.dispose()
 
@@ -100,6 +155,6 @@ if __name__ == "__main__":
     from dotenv import load_dotenv
 
     load_dotenv()
-    d = DBConnectionManager()
+    d = DBConnectionManager("staging")
     print(len(d.connections))
     d.close_all()
