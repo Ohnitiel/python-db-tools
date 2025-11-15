@@ -1,18 +1,13 @@
 import argparse
-import tomllib
 from pathlib import Path
 
 import openpyxl
 
-from lib.extras import find_root_dir
-from lib.types import Struct
-from runner import DBConnectionRunner
+from db_tools.runner import DBConnectionRunner
+from lib.extras import get_available_connections
+from lib.logger import get_logger, setup_logging
 
-config_path = Path(find_root_dir(["pyproject.toml"])) / ".config/config.toml"
-with open(config_path, "rb") as f:
-    configs = Struct(tomllib.load(f))
-
-connections = Path(configs.paths.connections).glob("*.toml")
+connections = get_available_connections()
 
 
 def create_arguments() -> argparse.ArgumentParser:
@@ -34,6 +29,7 @@ def create_arguments() -> argparse.ArgumentParser:
         required=False,
         nargs="+",
         choices=[connections],
+        help="Utilizar somente estas conexões. Conexões disponíveis na configuração 'connections'.",
     )
     parser.add_argument("-q", "--query", type=str, required=True)
     parser.add_argument(
@@ -112,17 +108,24 @@ def main():
         args.output_format,
     )
     add_connection_column = True if args.column_name else False
-    df = runner.execute_query_multi_db(
-        args.query,
-        args.commit,
-        args.no_parallel,
-        add_connection_column,
-        args.column_name,
-    )
+    try:
+        df = runner.execute_query_multi_db(
+            args.query,
+            args.commit,
+            args.no_parallel,
+            add_connection_column,
+            args.column_name,
+        )
+    finally:
+        runner.close_all()
 
 
 if __name__ == "__main__":
     from dotenv import load_dotenv
 
     load_dotenv()
+
+    setup_logging()
+    logger = get_logger("db_tools")
+
     main()

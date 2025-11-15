@@ -7,6 +7,7 @@ from sqlalchemy.engine.base import Engine
 from sqlalchemy.engine.create import create_engine
 
 from lib.extras import find_root_dir
+from lib.logger import get_logger
 from lib.types import Struct
 
 
@@ -28,11 +29,14 @@ class DBConnectionManager:
         Args:
             connections: A list of connection names to manage.
         """
+        self.logger = get_logger(__name__)
         self.configurations = self._load_config()
         self.connections = self._get_gonnections()
 
         if connections:
             self._filter_connections(connections)
+
+        self.logger.info(f"Initialized manager for {len(self.connections)}")
 
         for connection, config in self.connections.items():
             config.connstring = self._build_connstring(config, environment)
@@ -81,6 +85,12 @@ class DBConnectionManager:
         return connections
 
     def _resolve_passwords(self: "DBConnectionManager", info: Any):
+        """
+        Recursively resolves password using env vars.
+
+        Args:
+            info: Database connection object
+        """
         if isinstance(info, dict):
             return Struct({k: self._resolve_passwords(v) for k, v in info.items()})
         elif info == "password" and info.startswith("${") and info.endswith("}"):
@@ -116,6 +126,11 @@ class DBConnectionManager:
             A connection string.
         """
         db_type = config.type
+        if db_type == "postgresql":
+            conn_string = "postgresql+psycopg2://"
+        else:
+            raise NotImplementedError(f"Connection type '{db_type}' not implemented!")
+
         host = config[environment].host
         port = config.port
         database = config.database
@@ -123,10 +138,7 @@ class DBConnectionManager:
         password = getattr(config[environment], "password", config.get("password"))
         connection = f"{username}:{password}@{host}:{port}/{database}"
 
-        if db_type == "postgresql":
-            return f"postgresql+psycopg2://{connection}"
-        else:
-            raise NotImplementedError(f"Connection type '{db_type}' not implemented!")
+        return conn_string + connection
 
     def _create_engines(self: "DBConnectionManager") -> Struct:
         """
@@ -139,6 +151,8 @@ class DBConnectionManager:
         for connection, config in self.connections.items():
             engines[connection] = create_engine(config.connstring)
 
+        self.logger.info(f"Created engines for {len(self.connections)}")
+
         return engines
 
     def close_all(self: "DBConnectionManager"):
@@ -147,6 +161,8 @@ class DBConnectionManager:
         """
         for engine in self.engines.values():
             engine.dispose()
+
+        self.logger.info("Disposed of all configured engines")
 
         self.engines.clear()
 

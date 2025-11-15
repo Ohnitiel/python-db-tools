@@ -1,4 +1,7 @@
+import tomllib
 from pathlib import Path
+
+from lib.types import Struct
 
 
 def find_root_dir(markers: list[str]) -> Path:
@@ -37,3 +40,16 @@ def find_root_dir(markers: list[str]) -> Path:
         if (curr_path == drive) or (curr_path.samefile(root)):
             markers_str = ", ".join(markers)
             raise FileNotFoundError(f"No marker found!\nMarkers: {markers_str}")
+
+
+def get_available_connections() -> list[str]:
+    """Return a list of available connection names from TOML files."""
+    root = find_root_dir(["pyproject.toml"])
+    config_path = root / ".config/config.toml"
+    with open(config_path, "rb") as f:
+        configs = Struct(tomllib.load(f))
+
+    connections_path = config_path.parent / configs.paths.connections
+    connections_path_list = list(connections_path.glob("*.toml"))
+
+    return [x.stem for x in connections_path_list]

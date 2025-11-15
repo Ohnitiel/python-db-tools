@@ -6,7 +6,8 @@ from typing import Any, Optional
 import pandas as pd
 from sqlalchemy.sql._elements_constructors import text
 
-from manager import DBConnectionManager
+from db_tools.manager import DBConnectionManager
+from lib.logger import get_logger
 
 
 class DBConnectionRunner(DBConnectionManager):
@@ -38,6 +39,8 @@ class DBConnectionRunner(DBConnectionManager):
             file_format: The format to save the results in.
             **kwargs: Additional keyword arguments to pass to the file export function.
         """
+        self.logger = get_logger(__name__)
+
         super().__init__(environment, connections)
         self.max_workers = max_workers
         self.save_path = save_path
@@ -72,6 +75,7 @@ class DBConnectionRunner(DBConnectionManager):
 
             return {"success": True, "data": result, "columns": columns}
         except Exception as e:
+            self.logger.error(f"{connection} - Failed: {e}")
             return {"success": False, "error": e}
 
     def execute_query_multi_db(
@@ -101,6 +105,7 @@ class DBConnectionRunner(DBConnectionManager):
             for connection, config in self.connections.items():
                 result = self.execute_query(query, connection, commit)
                 if result["success"]:
+                    self.logger.info(f"{config.name} - sucess!")
                     data[config["name"]] = pd.DataFrame(
                         result["data"], columns=result["columns"]
                     )
@@ -118,6 +123,7 @@ class DBConnectionRunner(DBConnectionManager):
                 result = future.result()
 
                 if result["success"]:
+                    self.logger.info(f"{config.name} - Sucess!")
                     data[connection] = pd.DataFrame(
                         result["data"], columns=result["columns"]
                     )
@@ -150,12 +156,17 @@ class DBConnectionRunner(DBConnectionManager):
         if format is None:
             format = save_path.suffix.lstrip(".")
 
-        # TODO handle other formats (csv, json)
         if format == "xlsx":
             # TODO Handle max sheet size rows and/or columns
             df.to_excel(save_path, engine="openpyxl", index=False)
         elif format == "parquet":
             df.to_parquet(save_path, engine="pyarrow", index=False)
+        elif format == "csv":
+            df.to_csv(save_path, index=False)
+        elif format == "json":
+            df.to_json(save_path, index=False)
+
+        self.logger.info(f"Data extracted to {save_path}.")
 
 
 if __name__ == "__main__":
