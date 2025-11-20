@@ -3,7 +3,7 @@ import logging.config
 import tomllib
 from pathlib import Path
 
-from lib.extras import find_root_dir
+from .extras import find_root_dir
 
 
 def setup_logging():

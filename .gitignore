@@ -14,3 +14,9 @@ wheels/
 
 # Database Connections
 .config/database/connections/*
+
+# Cache
+.cache/
+
+# Log Files
+log/*

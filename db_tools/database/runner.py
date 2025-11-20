@@ -1,3 +1,5 @@
+import hashlib
+import pickle
 from concurrent.futures._base import as_completed
 from concurrent.futures.thread import ThreadPoolExecutor
 from pathlib import Path
@@ -6,8 +8,8 @@ from typing import Any, Optional
 import pandas as pd
 from sqlalchemy.sql._elements_constructors import text
 
-from db_tools.manager import DBConnectionManager
-from lib.logger import get_logger
+from .manager import DBConnectionManager
+from ..logger import get_logger
 
 
 class DBConnectionRunner(DBConnectionManager):
@@ -37,6 +39,8 @@ class DBConnectionRunner(DBConnectionManager):
             max_workers: The maximum number of threads to use.
             save_path: The path to save the results to.
             file_format: The format to save the results in.
+            ignore_cache: Whether to ignore the cache.
+            no_cache: Whether to not use the cache.
             **kwargs: Additional keyword arguments to pass to the file export function.
         """
         self.logger = get_logger(__name__)
@@ -46,6 +50,19 @@ class DBConnectionRunner(DBConnectionManager):
         self.save_path = save_path
         self.file_format = file_format
         self.kwargs = kwargs
+
+    def _cache_query_result(
+        self: "DBConnectionRunner",
+        query: str,
+        df: pd.DataFrame,
+        failed_extractions: dict,
+        run_hash: str,
+    ):
+        cache_root = f".cache/{run_hash}"
+
+        df.to_parquet(f"{cache_root}.parquet")
+        with open(f"{cache_root}.pkl", "wb") as f:
+            pickle.dump(failed_extractions, f)
 
     def execute_query(
         self: "DBConnectionRunner", query: str, connection: str, commit: bool = False
@@ -85,7 +102,9 @@ class DBConnectionRunner(DBConnectionManager):
         parallel: bool = True,
         add_connection_column: bool = True,
         connection_column_name: str = "connection",
-    ) -> tuple[pd.DataFrame, dict]:
+        no_cache: bool = False,
+        ignore_cache: bool = False,
+        ) -> pd.DataFrame:
         """
         Executes a query on multiple database connections.
 
@@ -99,74 +118,82 @@ class DBConnectionRunner(DBConnectionManager):
         Returns:
             A tuple containing a DataFrame with the results and a dictionary with any errors that occurred.
         """
+        if not ignore_cache:
+            run_hash = hashlib.sha256(
+                f"{query}{','.join(self.connections)}".encode()
+            ).hexdigest()
+            cache_root = f".cache/{run_hash}"
+            Path(f"{cache_root}.parquet").parent.mkdir(parents=True, exist_ok=True)
+
+            if Path(f"{cache_root}.parquet").exists():
+                answer = input("Encontrado cache. Deseja utilizá-lo?")
+                if answer.lower() == "s":
+                    return pd.read_parquet(f"{cache_root}.parquet")
+
         data = {}
         failed_extractions = {}
-        if not parallel:
+        if parallel:
+            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                future_results = {}
+                for connection, config in self.connections.items():
+                    future = executor.submit(
+                        self.execute_query, query, connection, commit
+                    )
+                    future_results[future] = config["name"]
+
+                for future in as_completed(future_results):
+                    connection = future_results[future]
+                    result = future.result()
+                    data, failed_extractions = self._process_results(
+                        result,
+                        connection,
+                        data,
+                        failed_extractions,
+                        connection_column_name,
+                        add_connection_column,
+                    )
+
+        else:
             for connection, config in self.connections.items():
                 result = self.execute_query(query, connection, commit)
-                if result["success"]:
-                    self.logger.info(f"{config.name} - sucess!")
-                    data[config["name"]] = pd.DataFrame(
-                        result["data"], columns=result["columns"]
-                    )
-                else:
-                    failed_extractions[config["name"]] = result["error"]
-
-        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            future_results = {}
-            for connection, config in self.connections.items():
-                future = executor.submit(self.execute_query, query, connection, commit)
-                future_results[future] = config["name"]
-
-            for future in as_completed(future_results):
-                connection = future_results[future]
-                result = future.result()
-
-                if result["success"]:
-                    self.logger.info(f"{config.name} - Sucess!")
-                    data[connection] = pd.DataFrame(
-                        result["data"], columns=result["columns"]
-                    )
-                else:
-                    failed_extractions[connection] = result["error"]
+                data, failed_extractions = self._process_results(
+                    result,
+                    connection,
+                    data,
+                    failed_extractions,
+                    connection_column_name,
+                    add_connection_column,
+                )
 
         df = pd.concat(data, ignore_index=True)
 
-        if self.save_path is not None:
-            self.export_to_file(df, self.save_path, self.file_format, **self.kwargs)
+        if not no_cache:
+            run_hash = hashlib.sha256(
+                f"{query}{','.join(self.connections)}".encode()
+            ).hexdigest()
+            self._cache_query_result(query, df, failed_extractions, run_hash)
 
-        return df, failed_extractions
+        return df
 
-    def export_to_file(
+    def _process_results(
         self: "DBConnectionRunner",
-        df: pd.DataFrame,
-        save_path: Path,
-        format: Optional[str] = None,
-        **kwargs,
-    ) -> None:
-        """
-        Exports a DataFrame to a file.
+        result: dict[Any, Any],
+        connection: str,
+        data: dict[str, pd.DataFrame],
+        failed_extractions: dict[Any, Any],
+        connection_column_name: str,
+        add_connection_column: bool = True,
+    ) -> tuple[dict, dict]:
+        if result["success"]:
+            self.logger.info(f"{connection} - sucess!")
+            data[connection] = pd.DataFrame(result["data"], columns=result["columns"])
+            if add_connection_column:
+                data[connection][connection_column_name] = connection
+        else:
+            failed_extractions[connection] = result["error"]
 
-        Args:
-            df: The DataFrame to export.
-            save_path: The path to save the file to.
-            format: The format to save the file in.
-            **kwargs: Additional keyword arguments to pass to the file export function.
-        """
-        if format is None:
-            format = save_path.suffix.lstrip(".")
+        return data, failed_extractions
 
-        if format == "xlsx":
-            # TODO Handle max sheet size rows and/or columns
-            df.to_excel(save_path, engine="openpyxl", index=False)
-        elif format == "parquet":
-            df.to_parquet(save_path, engine="pyarrow", index=False)
-        elif format == "csv":
-            df.to_csv(save_path, index=False)
-        elif format == "json":
-            df.to_json(save_path, index=False)
-
-        self.logger.info(f"Data extracted to {save_path}.")
 
 
 if __name__ == "__main__":

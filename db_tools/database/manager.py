@@ -1,14 +1,15 @@
 import os
 import tomllib
+import urllib.parse
 from pathlib import Path
 from typing import Any
 
 from sqlalchemy.engine.base import Engine
 from sqlalchemy.engine.create import create_engine
 
-from lib.extras import find_root_dir
-from lib.logger import get_logger
-from lib.types import Struct
+from ..extras import find_root_dir, Struct
+from ..logger import get_logger
+
 
 
 class DBConnectionManager:
@@ -36,7 +37,7 @@ class DBConnectionManager:
         if connections:
             self._filter_connections(connections)
 
-        self.logger.info(f"Initialized manager for {len(self.connections)}")
+        self.logger.info(f"Initialized manager for {len(self.connections)} connecions")
 
         for connection, config in self.connections.items():
             config.connstring = self._build_connstring(config, environment)
@@ -93,9 +94,9 @@ class DBConnectionManager:
         """
         if isinstance(info, dict):
             return Struct({k: self._resolve_passwords(v) for k, v in info.items()})
-        elif info == "password" and info.startswith("${") and info.endswith("}"):
+        elif isinstance(info, str) and info.startswith("${") and info.endswith("}"):
             env_var = info[2:-1]
-            return os.environ[env_var]
+            return urllib.parse.quote(os.environ[env_var])
         return info
 
     def _filter_connections(self: "DBConnectionManager", connections: list[str]):
@@ -149,9 +150,10 @@ class DBConnectionManager:
         """
         engines = Struct()
         for connection, config in self.connections.items():
+            print(config.connstring)
             engines[connection] = create_engine(config.connstring)
 
-        self.logger.info(f"Created engines for {len(self.connections)}")
+        self.logger.info(f"Created engines for {len(self.connections)} connections")
 
         return engines
 
