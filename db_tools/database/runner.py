@@ -1,5 +1,6 @@
 import hashlib
 import pickle
+import re
 from concurrent.futures._base import as_completed
 from concurrent.futures.thread import ThreadPoolExecutor
 from pathlib import Path
@@ -8,8 +9,10 @@ from typing import Any, Optional
 import pandas as pd
 from sqlalchemy.sql._elements_constructors import text
 
-from .manager import DBConnectionManager
+from db_tools.database.query_type import QueryType
+
 from ..logger import get_logger
+from .manager import DBConnectionManager
 
 
 class DBConnectionRunner(DBConnectionManager):
@@ -64,8 +67,44 @@ class DBConnectionRunner(DBConnectionManager):
         with open(f"{cache_root}.pkl", "wb") as f:
             pickle.dump(failed_extractions, f)
 
+    def _verify_query_type(self: "DBConnectionRunner", query: str) -> QueryType:
+        # Strip query of comments
+        clean_query = re.sub(
+            r"--.*?$|/\*.*?\*/", "", query, flags=re.MULTILINE | re.DOTALL
+        )
+        clean_query = clean_query.strip().upper()
+
+        if not clean_query:
+            raise ValueError("Empty query!")
+
+        first_word = query.split()[0]
+
+        if first_word == "WITH":
+            dml_keywords = ["UPDATE", "INSERT", "DELETE"]
+            if any(dml in query for dml in dml_keywords):
+                return QueryType.DML
+            return QueryType.DQL
+
+        keyword_map = {
+            "SELECT": QueryType.DQL,
+            "UPDATE": QueryType.DML,
+            "INSERT": QueryType.DML,
+            "DELETE": QueryType.DML,
+        }
+
+        query_type = keyword_map.get(first_word)
+
+        if query_type is None:
+            raise ValueError("Unknown query type!")
+
+        return query_type
+
     def execute_query(
-        self: "DBConnectionRunner", query: str, connection: str, commit: bool = False
+        self: "DBConnectionRunner",
+        query: str,
+        connection: str,
+        query_type: QueryType,
+        commit: bool = False,
     ) -> dict[str, Any]:
         """
         Executes a query on a single database connection.
@@ -79,18 +118,19 @@ class DBConnectionRunner(DBConnectionManager):
             A dictionary containing the results of the query.
         """
         try:
+            df = None
             with self.engines[connection].connect() as conn:
-                cursor = conn.execute(text(query))
+                if query_type == QueryType.DQL:
+                    df = pd.read_sql(text(query), conn)
+                elif query_type in [QueryType.DML, QueryType.DDL]:
+                    conn.execute(text(query))
 
-                result = cursor.fetchall()
-                columns = cursor.keys()
+                    if commit:
+                        conn.commit()
+                    else:
+                        conn.rollback()
 
-                if commit:
-                    conn.commit()
-                else:
-                    conn.rollback()
-
-            return {"success": True, "data": result, "columns": columns}
+            return {"success": True, "data": df}
         except Exception as e:
             self.logger.error(f"{connection} - Failed: {e}")
             return {"success": False, "error": e}
@@ -104,7 +144,7 @@ class DBConnectionRunner(DBConnectionManager):
         connection_column_name: str = "connection",
         no_cache: bool = False,
         ignore_cache: bool = False,
-        ) -> pd.DataFrame:
+    ) -> pd.DataFrame:
         """
         Executes a query on multiple database connections.
 
@@ -132,12 +172,14 @@ class DBConnectionRunner(DBConnectionManager):
 
         data = {}
         failed_extractions = {}
+        query_type = self._verify_query_type(query)
+        self.logger.info(f"Running query of type: {query_type}")
         if parallel:
             with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
                 future_results = {}
                 for connection, config in self.connections.items():
                     future = executor.submit(
-                        self.execute_query, query, connection, commit
+                        self.execute_query, query, connection, query_type, commit
                     )
                     future_results[future] = config["name"]
 
@@ -155,7 +197,7 @@ class DBConnectionRunner(DBConnectionManager):
 
         else:
             for connection, config in self.connections.items():
-                result = self.execute_query(query, connection, commit)
+                result = self.execute_query(query, connection, query_type, commit)
                 data, failed_extractions = self._process_results(
                     result,
                     connection,
@@ -186,14 +228,13 @@ class DBConnectionRunner(DBConnectionManager):
     ) -> tuple[dict, dict]:
         if result["success"]:
             self.logger.info(f"{connection} - sucess!")
-            data[connection] = pd.DataFrame(result["data"], columns=result["columns"])
+            data[connection] = result["data"]
             if add_connection_column:
                 data[connection][connection_column_name] = connection
         else:
             failed_extractions[connection] = result["error"]
 
         return data, failed_extractions
-
 
 
 if __name__ == "__main__":

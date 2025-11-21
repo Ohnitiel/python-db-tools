@@ -128,7 +128,7 @@ class DBConnectionManager:
         """
         db_type = config.type
         if db_type == "postgresql":
-            conn_string = "postgresql+psycopg2://"
+            conn_string = "postgresql+psycopg://"
         else:
             raise NotImplementedError(f"Connection type '{db_type}' not implemented!")
 
@@ -150,7 +150,6 @@ class DBConnectionManager:
         """
         engines = Struct()
         for connection, config in self.connections.items():
-            print(config.connstring)
             engines[connection] = create_engine(config.connstring)
 
         self.logger.info(f"Created engines for {len(self.connections)} connections")

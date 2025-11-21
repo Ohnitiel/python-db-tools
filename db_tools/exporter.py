@@ -72,27 +72,38 @@ def export_to_excel(
     if connection_column and connection_column not in df.columns:
         raise ValueError(f"{connection_column} not found in Dataframe!")
 
+    df = df.infer_objects()
+
+    datetime_columns = [
+        i
+        for i, dtype in enumerate(df.dtypes)
+        if pd.api.types.is_datetime64_any_dtype(dtype)
+    ]
+
+    for i in datetime_columns:
+        df[df.columns[i]] = df[df.columns[i]].dt.tz_convert(None)
+
     if single_file and single_sheet:
         with pd.ExcelWriter(save_path, engine="openpyxl") as writer:
-            df.to_excel(writer, sheet_name="Data")
-        if format:
-            format_excel(writer.book, df)
+            df.to_excel(writer, sheet_name="Data", index=False)
+            if format:
+                format_excel(writer.book, df)
 
     elif single_file:
         with pd.ExcelWriter(save_path, engine="openpyxl") as writer:
             for connection in df[connection_column].unique():
-                df[df[connection_column] == connection].to_excel(
-                    writer, sheet_name=connection
-                )
-        if format:
-            format_excel(writer.book, df)
+                conn_df = df[df[connection_column] == connection]
+                conn_df = conn_df.drop(columns=[connection_column])
+                conn_df.to_excel(writer, sheet_name=connection, index=False)
+            if format:
+                format_excel(writer.book, df)
 
     elif single_sheet:
         for connection in df[connection_column].unique():
             file_path = save_path.with_stem(f"{save_path.stem}_{connection}")
             with pd.ExcelWriter(file_path, engine="openpyxl") as writer:
-                df[df[connection_column] == connection].to_excel(writer)
-        if format:
-            format_excel(writer.book, df)
-
-
+                conn_df = df[df[connection_column] == connection]
+                conn_df = conn_df.drop(columns=[connection_column])
+                conn_df.to_excel(writer, index=False)
+                if format:
+                    format_excel(writer.book, df)
