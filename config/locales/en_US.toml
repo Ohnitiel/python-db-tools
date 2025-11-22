@@ -1,0 +1,48 @@
+[gui]
+title = "Database Multi-Tool"
+
+[gui.label]
+connections = "Connections"
+select_all = "Select All"
+environment = "Environment"
+staging = "Staging"
+production = "Production"
+replica = "Replica"
+parallel = "Run in parallel"
+max_workers = "Max Workers"
+use_cache = "Use Cache"
+ignore_cache = "Ignore Cache"
+output_format = "Output format"
+format_excel = "Format Excel"
+single_sheet = "Single Sheet"
+single_file = "Single File"
+connection_column = "Connection column"
+run_query = "Run query"
+running = "Running"
+save_results = "Save result"
+
+[gui.label.messagebox]
+title_no_query = "No Query"
+title_no_connections = "No Connections"
+title_cache_found = "Cache Found"
+title_query_error = "Query Error"
+title_no_results = "No Results"
+title_success = "Success"
+title_save_error = "Save Error"
+
+message_enter_query = "Please enter a SQL query to execute." 
+message_select_connection = "Please select at least one database connection." 
+message_cache_found = "A cached result for this query was found. Do you want to use it?"
+message_query_error = "An error occurred:\n {##}"
+message_no_results = "The query executed successfully but returned no data."
+message_no_result_save = "There are no results to save"
+message_query_success = "DML query executed successfully on all connections."
+message_save_success = "Results successfully saved to {##}"
+message_save_error = "An error occurred while saving the file:\n{##}"
+
+[gui.placeholder]
+
+filter_connections = "Filter connections"
+query_input = "-- Write your SQL query here..."
+
+
