@@ -13,7 +13,7 @@ wheels/
 .env
 
 # Database Connections
-.config/database/connections/*
+config/database/connections/*
 
 # Cache
 .cache/
