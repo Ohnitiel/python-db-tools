@@ -44,7 +44,7 @@ def find_root_dir(markers: list[str]) -> Path:
 def get_available_connections() -> list[str]:
     """Return a list of available connection names from TOML files."""
     root = find_root_dir(["pyproject.toml"])
-    config_path = root / ".config/config.toml"
+    config_path = root / "config/config.toml"
     with open(config_path, "rb") as f:
         configs = Struct(tomllib.load(f))
 

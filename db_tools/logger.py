@@ -8,7 +8,7 @@ from .extras import find_root_dir
 
 def setup_logging():
     try:
-        config_path = find_root_dir(["pyproject.toml"]) / ".config/logging/config.toml"
+        config_path = find_root_dir(["pyproject.toml"]) / "config/logging/config.toml"
         with open(config_path, "rb") as f:
             config_dict = tomllib.load(f)
 

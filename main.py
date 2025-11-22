@@ -2,7 +2,7 @@ import argparse
 from pathlib import Path
 
 from db_tools.database import DBConnectionRunner
-from db_tools.exporter import export_to_excel
+from db_tools.exporter import export_data
 from db_tools.extras import get_available_connections
 from db_tools.logger import get_logger, setup_logging
 
@@ -50,7 +50,7 @@ def create_arguments() -> argparse.ArgumentParser:
     )
     parser.add_argument("--output-format", type=str, choices=["xlsx", "json", "csv"])
     parser.add_argument(
-        "--format-excel", action=argparse.BooleanOptionalAction, default=False
+        "--format-excel", action=argparse.BooleanOptionalAction, default=True
     )
     parser.add_argument(
         "--single-sheet", action=argparse.BooleanOptionalAction, default=True
@@ -63,7 +63,7 @@ def create_arguments() -> argparse.ArgumentParser:
     parser.add_argument(
         "--ignore-cache", action=argparse.BooleanOptionalAction, default=False
     )
-    parser.add_argument("--cache", action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument("--cache", action=argparse.BooleanOptionalAction, default=True)
 
     return parser
 
@@ -103,20 +103,23 @@ def main():
         df = runner.execute_query_multi_db(
             args.query,
             args.commit,
-            args.no_parallel,
+            not args.no_parallel,
             add_connection_column,
             args.column_name,
             args.cache,
             args.ignore_cache,
+            use_cache_callback=lambda: input("Encontrado cache. Deseja utilizá-lo?").lower() == "s",
         )
-        export_to_excel(
-            args.save_path,
-            df,
-            args.single_file,
-            args.single_sheet,
-            args.column_name,
-            args.format_excel,
-        )
+        if args.save_path:
+            export_data(
+                args.save_path,
+                df,
+                args.output_format,
+                args.single_file,
+                args.single_sheet,
+                args.column_name,
+                args.format_excel,
+            )
     finally:
         runner.close_all()
 

@@ -52,7 +52,7 @@ class DBConnectionManager:
             A Struct object containing the configuration.
         """
         root: Path = find_root_dir(["pyproject.toml"])
-        config_path: Path = root / ".config/config.toml"
+        config_path: Path = root / "config/config.toml"
 
         with open(config_path, "rb") as f:
             configurations = Struct(tomllib.load(f))
@@ -66,7 +66,7 @@ class DBConnectionManager:
 
     def _get_gonnections(self: "DBConnectionManager") -> Struct:
         """
-        Gets the database connections from the .config/database/connections directory.
+        Gets the database connections from the config/database/connections directory.
 
         Returns:
             A Struct object containing the database connections.

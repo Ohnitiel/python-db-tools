@@ -56,9 +56,10 @@ def format_excel(wb: Workbook, df: pd.DataFrame):
                     cell.number_format = "dd/mm/yyyy"
 
 
-def export_to_excel(
+def export_data(
     save_path: Path,
     df: pd.DataFrame,
+    file_format: str,
     single_file: bool,
     single_sheet: bool,
     connection_column: Optional[str] = None,
@@ -83,27 +84,32 @@ def export_to_excel(
     for i in datetime_columns:
         df[df.columns[i]] = df[df.columns[i]].dt.tz_convert(None)
 
-    if single_file and single_sheet:
-        with pd.ExcelWriter(save_path, engine="openpyxl") as writer:
-            df.to_excel(writer, sheet_name="Data", index=False)
-            if format:
-                format_excel(writer.book, df)
-
-    elif single_file:
-        with pd.ExcelWriter(save_path, engine="openpyxl") as writer:
-            for connection in df[connection_column].unique():
-                conn_df = df[df[connection_column] == connection]
-                conn_df = conn_df.drop(columns=[connection_column])
-                conn_df.to_excel(writer, sheet_name=connection, index=False)
-            if format:
-                format_excel(writer.book, df)
-
-    elif single_sheet:
-        for connection in df[connection_column].unique():
-            file_path = save_path.with_stem(f"{save_path.stem}_{connection}")
-            with pd.ExcelWriter(file_path, engine="openpyxl") as writer:
-                conn_df = df[df[connection_column] == connection]
-                conn_df = conn_df.drop(columns=[connection_column])
-                conn_df.to_excel(writer, index=False)
+    if file_format == "xlsx":
+        if single_file and single_sheet:
+            with pd.ExcelWriter(save_path, engine="openpyxl") as writer:
+                df.to_excel(writer, sheet_name="Data", index=False)
                 if format:
                     format_excel(writer.book, df)
+
+        elif single_file:
+            with pd.ExcelWriter(save_path, engine="openpyxl") as writer:
+                for connection in df[connection_column].unique():
+                    conn_df = df[df[connection_column] == connection]
+                    conn_df = conn_df.drop(columns=[connection_column])
+                    conn_df.to_excel(writer, sheet_name=connection, index=False)
+                if format:
+                    format_excel(writer.book, df)
+
+        elif single_sheet:
+            for connection in df[connection_column].unique():
+                file_path = save_path.with_stem(f"{save_path.stem}_{connection}")
+                with pd.ExcelWriter(file_path, engine="openpyxl") as writer:
+                    conn_df = df[df[connection_column] == connection]
+                    conn_df = conn_df.drop(columns=[connection_column])
+                    conn_df.to_excel(writer, index=False)
+                    if format:
+                        format_excel(writer.book, df)
+    elif file_format == "json":
+        df.to_json(save_path, orient="records", indent=4)
+    elif file_format == "csv":
+        df.to_csv(save_path, index=False)

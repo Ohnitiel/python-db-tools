@@ -77,11 +77,11 @@ class DBConnectionRunner(DBConnectionManager):
         if not clean_query:
             raise ValueError("Empty query!")
 
-        first_word = query.split()[0]
+        first_word = clean_query.split()[0]
 
         if first_word == "WITH":
             dml_keywords = ["UPDATE", "INSERT", "DELETE"]
-            if any(dml in query for dml in dml_keywords):
+            if any(dml in clean_query for dml in dml_keywords):
                 return QueryType.DML
             return QueryType.DQL
 
@@ -93,6 +93,8 @@ class DBConnectionRunner(DBConnectionManager):
         }
 
         query_type = keyword_map.get(first_word)
+
+        print(first_word, query_type)
 
         if query_type is None:
             raise ValueError("Unknown query type!")
@@ -118,6 +120,7 @@ class DBConnectionRunner(DBConnectionManager):
             A dictionary containing the results of the query.
         """
         try:
+            self.logger.info(f"--> Attempting query on connection: {connection}")
             df = None
             with self.engines[connection].connect() as conn:
                 if query_type == QueryType.DQL:
@@ -132,7 +135,7 @@ class DBConnectionRunner(DBConnectionManager):
 
             return {"success": True, "data": df}
         except Exception as e:
-            self.logger.error(f"{connection} - Failed: {e}")
+            self.logger.error(f"xxx FAILED query on connection: {connection} | Error: {e}")
             return {"success": False, "error": e}
 
     def execute_query_multi_db(
@@ -142,8 +145,9 @@ class DBConnectionRunner(DBConnectionManager):
         parallel: bool = True,
         add_connection_column: bool = True,
         connection_column_name: str = "connection",
-        no_cache: bool = False,
+        cache: bool = False,
         ignore_cache: bool = False,
+        use_cache_callback: callable = None,
     ) -> pd.DataFrame:
         """
         Executes a query on multiple database connections.
@@ -154,6 +158,9 @@ class DBConnectionRunner(DBConnectionManager):
             parallel: Whether to execute the queries in parallel.
             add_connection_column: Whether to add a column with the connection name to the results.
             connection_column_name: The name of the connection column.
+            cache: Whether to use the cache.
+            ignore_cache: Whether to ignore the cache.
+            use_cache_callback: A function to call to ask the user to use the cache.
 
         Returns:
             A tuple containing a DataFrame with the results and a dictionary with any errors that occurred.
@@ -166,8 +173,7 @@ class DBConnectionRunner(DBConnectionManager):
             Path(f"{cache_root}.parquet").parent.mkdir(parents=True, exist_ok=True)
 
             if Path(f"{cache_root}.parquet").exists():
-                answer = input("Encontrado cache. Deseja utilizá-lo?")
-                if answer.lower() == "s":
+                if use_cache_callback and use_cache_callback():
                     return pd.read_parquet(f"{cache_root}.parquet")
 
         data = {}
@@ -207,9 +213,13 @@ class DBConnectionRunner(DBConnectionManager):
                     add_connection_column,
                 )
 
-        df = pd.concat(data, ignore_index=True)
+        if not data:
+            df = pd.DataFrame()
+        else:
+            df = pd.concat(data.values(), ignore_index=True)
 
-        if not no_cache:
+
+        if cache:
             run_hash = hashlib.sha256(
                 f"{query}{','.join(self.connections)}".encode()
             ).hexdigest()
@@ -227,11 +237,15 @@ class DBConnectionRunner(DBConnectionManager):
         add_connection_column: bool = True,
     ) -> tuple[dict, dict]:
         if result["success"]:
-            self.logger.info(f"{connection} - sucess!")
-            data[connection] = result["data"]
-            if add_connection_column:
-                data[connection][connection_column_name] = connection
+            self.logger.info(f"<-- SUCCESS from connection: {connection}")
+            # DML queries return None, so we handle that case
+            if result.get("data") is not None:
+                df = result["data"]
+                if add_connection_column:
+                    df[connection_column_name] = connection
+                data[connection] = df
         else:
+            # Error is already logged in execute_query
             failed_extractions[connection] = result["error"]
 
         return data, failed_extractions
