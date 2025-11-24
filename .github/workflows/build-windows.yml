@@ -33,7 +33,7 @@ jobs:
       shell: pwsh
 
     - name: Build executable with PyInstaller
-      run: uv run pyinstaller --noconfirm --onefile --windowed `
+      run: uv tool update-shell; uv run pyinstaller --noconfirm --onefile --windowed `
           --name "db-multi-tool" `
           --add-data ".config;config" `
           gui.py
