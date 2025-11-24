@@ -34,7 +34,7 @@ jobs:
 
     - name: Build executable with PyInstaller
       run: |
-        pyinstaller --noconfirm --onefile --windowed `
+        uv run pyinstaller --noconfirm --onefile --windowed `
           --name "db-multi-tool" `
           --add-data ".config;config" `
           gui.py
