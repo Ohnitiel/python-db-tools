@@ -1,6 +1,8 @@
-from typing import Any
+import os
+import sys
 import tomllib
 from pathlib import Path
+from typing import Any
 
 
 def find_root_dir(markers: list[str]) -> Path:
@@ -28,6 +30,9 @@ def find_root_dir(markers: list[str]) -> Path:
     Note:
         The search is case-sensitive and matches exact names. The function handles both Windows drive roots and Unix-style filesystem roots.
     """
+    if getattr(sys, "frozen", False):
+        return Path(os.path.dirname(sys.executable))
+
     curr_path = Path(Path.cwd())
     drive = curr_path.drive
     root = Path("/")
