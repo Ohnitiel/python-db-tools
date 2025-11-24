@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 import pandas as pd
+from psycopg.errors import OperationalError
 from sqlalchemy.sql._elements_constructors import text
 
 from db_tools.database.query_type import QueryType
@@ -94,8 +95,6 @@ class DBConnectionRunner(DBConnectionManager):
 
         query_type = keyword_map.get(first_word)
 
-        print(first_word, query_type)
-
         if query_type is None:
             raise ValueError("Unknown query type!")
 
@@ -119,24 +118,47 @@ class DBConnectionRunner(DBConnectionManager):
         Returns:
             A dictionary containing the results of the query.
         """
-        try:
-            self.logger.info(f"--> Attempting query on connection: {connection}")
-            df = None
-            with self.engines[connection].connect() as conn:
-                if query_type == QueryType.DQL:
-                    df = pd.read_sql(text(query), conn)
-                elif query_type in [QueryType.DML, QueryType.DDL]:
-                    conn.execute(text(query))
+        retries = 0
+        while True:
+            try:
+                self.logger.info(f"--> Attempting query on connection: {connection}")
+                df = None
+                retries += 1
+                with self.engines[connection].connect() as conn:
+                    if query_type == QueryType.DQL:
+                        df = pd.read_sql(text(query), conn)
+                    elif query_type in [QueryType.DML, QueryType.DDL]:
+                        conn.execute(text(query))
 
-                    if commit:
-                        conn.commit()
-                    else:
-                        conn.rollback()
+                        if commit:
+                            conn.commit()
+                        else:
+                            conn.rollback()
 
-            return {"success": True, "data": df}
-        except Exception as e:
-            self.logger.error(f"xxx FAILED query on connection: {connection} | Error: {e}")
-            return {"success": False, "error": e}
+                return {"success": True, "data": df}
+            except OperationalError as e:
+                """ Attempting to handle transient connection issues. """
+                if retries <= self.configurations.connections.max_retries:
+                    new_timeout = self.configurations.connections.timeout * (
+                        retries + 1
+                    )
+                    self.logger.warning(
+                        f"Connection attempt on {connection} failed. Attempt: {retries}. Timeout: {new_timeout}."
+                    )
+                    self.engines[connection].execution_options(timeout=new_timeout)
+                    return self.execute_query(
+                        query,
+                        connection,
+                        query_type,
+                        commit,
+                    )
+                else:
+                    return {"success": False, "error": e}
+            except Exception as e:
+                self.logger.error(
+                    f"xxx FAILED query on connection: {connection} | Error: {e}"
+                )
+                return {"success": False, "error": e}
 
     def execute_query_multi_db(
         self: "DBConnectionRunner",
@@ -217,7 +239,6 @@ class DBConnectionRunner(DBConnectionManager):
             df = pd.DataFrame()
         else:
             df = pd.concat(data.values(), ignore_index=True)
-
 
         if cache:
             run_hash = hashlib.sha256(

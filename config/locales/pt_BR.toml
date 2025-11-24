@@ -1,0 +1,46 @@
+[gui]
+title = "MultiDB Querier"
+
+[gui.label]
+connections = "Conexões"
+select_all_connections = "Selecionar Todas"
+environment = "Ambiente"
+staging = "Homologação"
+production = "Produção"
+replica = "Réplica"
+run_in_parallel = "Executar em paralelo"
+max_workers = "Máximo de Threads"
+use_cache = "Utilizar Cache"
+ignore_cache = "Ignorar Cache"
+output_format = "Formato de saída"
+format_excel = "Formatar Excel"
+single_sheet = "Aba Única"
+single_file = "Arquivo Único"
+connection_column = "Coluna da Conexão"
+run_query = "Executar query"
+running = "Executando"
+save_results = "Salvar resultado"
+commit = "Comitar Transação"
+
+[gui.messagebox]
+title_no_query = "Sem Query"
+title_no_connections = "Sem Conexões"
+title_cache_found = "Cache Encontrado"
+title_query_error = "Erro de Query"
+title_no_results = "Sem Resultados"
+title_success = "Sucesso"
+title_save_error = "Erro ao Salvar"
+
+message_enter_query = "Por favor forneça uma query." 
+message_select_connection = "Selecione pelo menos uma conexão."
+message_cache_found = "Foi encontrado um cache para esta query. Deseja utilizar?"
+message_query_error = "Erro encontrado:\n {##}"
+message_no_results = "A query executou com sucesso, mas nenhum resultado foi retornado."
+message_no_result_save = "Sem resultados para salvar."
+message_query_success = "Query DML executada com sucesso em todas conexões."
+message_save_success = "Resultados salvos no arquivo {##}"
+message_save_error = "Erro encontrado ao salvar:\n{##}"
+
+[gui.placeholder]
+filter_connections = "Filtrar conexões"
+query_input = "-- Sua query aqui..."
