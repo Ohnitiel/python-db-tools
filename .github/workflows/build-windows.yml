@@ -30,7 +30,7 @@ jobs:
       run: uv add pyinstaller
 
     - name: Build executable with PyInstaller
-      run: uv tool update-shell; uv run pyinstaller --noconfirm --onefile --windowed --name "db-multi-tool" --add-data "config" gui.py
+      run: uv tool update-shell; uv run pyinstaller --noconfirm --onefile --windowed --name "db-multi-tool" --add-data "config:config" gui.py
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
