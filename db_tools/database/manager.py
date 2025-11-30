@@ -66,7 +66,7 @@ class DBConnectionManager:
 
         return configurations
 
-    def _get_gonnections(self: "DBConnectionManager") -> Struct:
+    def _get_connections(self: "DBConnectionManager") -> Struct:
         """
         Gets the database connections from the config/database/connections directory.
 
