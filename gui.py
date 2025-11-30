@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from db_tools.database.runner import DBConnectionRunner
 from db_tools.exporter import export_data
 from db_tools.extras import Struct, find_root_dir, get_available_connections
+from db_tools.gui.connections import ConnectionsWindow
 
 
 class App(customtkinter.CTk):
@@ -26,6 +27,7 @@ class App(customtkinter.CTk):
         self.title(self.locale_config.gui.title)
         self.geometry("1280x800")
         self.results_df = None
+        self.connections_window = None
 
         # --- Main Layout ---
         self.grid_rowconfigure(0, weight=1)
@@ -216,12 +218,22 @@ class App(customtkinter.CTk):
             offvalue="off",
         )
         self.commit_checkbox.grid(row=0, column=0, padx=(0, 10), pady=10, sticky="w")
+
+        self.manage_connections_button = customtkinter.CTkButton(
+            self.bottom_frame,
+            text="Manage Connections",
+            command=self._open_connections_window,
+        )
+        self.manage_connections_button.grid(
+            row=0, column=1, padx=(10, 0), pady=10, sticky="w"
+        )
+
         self.run_button = customtkinter.CTkButton(
             self.bottom_frame,
             text=self.locale_config.gui.label.run_query,
             command=self._run_query_callback,
         )
-        self.run_button.grid(row=0, column=1, padx=(10, 0), pady=10, sticky="e")
+        self.run_button.grid(row=0, column=2, padx=(10, 0), pady=10, sticky="e")
 
         # --- Right Panel (Query and Results) ---
         self.right_frame = customtkinter.CTkFrame(self)
@@ -255,6 +267,13 @@ class App(customtkinter.CTk):
         locale_config_path = Path(root) / f"config/locales/{locale}.toml"
         with open(locale_config_path, "rb") as f:
             self.locale_config = Struct(tomllib.load(f))
+
+    def _open_connections_window(self: "App"):
+        if self.connections_window is None or not self.connections_window.winfo_exists():
+            self.connections_window = ConnectionsWindow(
+                self
+            )  # create window if its None or destroyed
+        self.connections_window.focus()
 
     def _browse_save_path(self: "App"):
         filename = filedialog.asksaveasfilename(

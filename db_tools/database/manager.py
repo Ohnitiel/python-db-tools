@@ -9,6 +9,7 @@ from sqlalchemy.engine.create import create_engine
 
 from ..extras import find_root_dir, Struct
 from ..logger import get_logger
+from ..security import SecurityManager
 
 
 
@@ -31,6 +32,7 @@ class DBConnectionManager:
             connections: A list of connection names to manage.
         """
         self.logger = get_logger(__name__)
+        self.security_manager = SecurityManager()
         self.configurations = self._load_config()
         self.connections = self._get_gonnections()
 
@@ -93,10 +95,26 @@ class DBConnectionManager:
             info: Database connection object
         """
         if isinstance(info, dict):
-            return Struct({k: self._resolve_passwords(v) for k, v in info.items()})
-        elif isinstance(info, str) and info.startswith("${") and info.endswith("}"):
-            env_var = info[2:-1]
-            return urllib.parse.quote(os.environ[env_var])
+            if "password" in info:
+                password = info["password"]
+                if (
+                    isinstance(password, str)
+                    and password.startswith("${")
+                    and password.endswith("}")
+                ):
+                    env_var = password[2:-1]
+                    info["password"] = urllib.parse.quote(os.environ[env_var])
+                else:
+                    info["password"] = self.security_manager.decrypt_password(password)
+
+            for key, value in info.items():
+                if key != "password":
+                    self._resolve_passwords(value)
+
+            return Struct(info)
+        elif isinstance(info, list):
+            for item in info:
+                self._resolve_passwords(item)
         return info
 
     def _filter_connections(self: "DBConnectionManager", connections: list[str]):

@@ -5,6 +5,7 @@ description = "Handler for multiple database connections"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "cryptography",
     "customtkinter>=5.2.2",
     "openpyxl>=3.1.5",
     "pandas>=2.3.3",
@@ -12,4 +13,5 @@ dependencies = [
     "pyarrow>=22.0.0",
     "python-dotenv>=1.2.1",
     "sqlalchemy>=2.0.44",
+    "tomli-w>=1.0.0",
 ]

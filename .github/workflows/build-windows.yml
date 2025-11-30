@@ -29,11 +29,28 @@ jobs:
     - name: Install pyinstaller
       run: uv add pyinstaller
 
+    - name: Get version
+      id: get_version
+      run: |
+        $content = Get-Content pyproject.toml
+        $version = $content | Select-String -Pattern 'version = "(.*)"' | ForEach-Object { $_.Matches.Groups[1].Value }
+        echo "version=$version" >> $env:GITHUB_OUTPUT
+
     - name: Build executable with PyInstaller
-      run: uv tool update-shell; uv run pyinstaller --noconfirm --onefile --windowed --name "db-multi-tool" --add-data "config:config" --hidden-import db_tools.database --hidden-import db_tools.exporter --hidden-import db_tools.extras --hidden-import db_tools.logger gui.py
+      run: uv run pyinstaller --noconfirm --windowed --name "db-multi-tool" --add-data "config;config" --hidden-import db_tools.database --hidden-import db_tools.exporter --hidden-import db_tools.extras --hidden-import db_tools.logger gui.py
+
+    - name: Zip dist folder
+      run: |
+        Compress-Archive -Path dist -DestinationPath "db-multi-tool-windows-${{ steps.get_version.outputs.version }}.zip"
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: db-multi-tool-windows
-        path: dist/db-multi-tool.exe
+        path: "db-multi-tool-windows-${{ steps.get_version.outputs.version }}.zip"
+
+    - name: Release
+      uses: softprops/action-gh-release@v2
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: "db-multi-tool-windows-${{ steps.get_version.outputs.version }}.zip"
