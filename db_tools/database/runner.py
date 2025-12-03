@@ -23,7 +23,6 @@ class DBConnectionRunner(DBConnectionManager):
 
     max_workers: int
     save_path: Optional[Path]
-    file_format: Optional[str]
     kwargs: dict
 
     def __init__(
@@ -32,7 +31,6 @@ class DBConnectionRunner(DBConnectionManager):
         connections: list[str] = [],
         max_workers: int = 8,
         save_path: Optional[Path] = None,
-        file_format: Optional[str] = None,
         **kwargs,
     ):
         """
@@ -42,7 +40,6 @@ class DBConnectionRunner(DBConnectionManager):
             connections: A list of connection names to run queries on.
             max_workers: The maximum number of threads to use.
             save_path: The path to save the results to.
-            file_format: The format to save the results in.
             ignore_cache: Whether to ignore the cache.
             no_cache: Whether to not use the cache.
             **kwargs: Additional keyword arguments to pass to the file export function.
@@ -52,7 +49,6 @@ class DBConnectionRunner(DBConnectionManager):
         super().__init__(environment, connections)
         self.max_workers = max_workers
         self.save_path = save_path
-        self.file_format = file_format
         self.kwargs = kwargs
 
     def _cache_query_result(
@@ -91,6 +87,7 @@ class DBConnectionRunner(DBConnectionManager):
             "UPDATE": QueryType.DML,
             "INSERT": QueryType.DML,
             "DELETE": QueryType.DML,
+            "CREATE": QueryType.DDL
         }
 
         query_type = keyword_map.get(first_word)

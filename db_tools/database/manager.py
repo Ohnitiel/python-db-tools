@@ -34,7 +34,7 @@ class DBConnectionManager:
         self.logger = get_logger(__name__)
         self.security_manager = SecurityManager()
         self.configurations = self._load_config()
-        self.connections = self._get_gonnections()
+        self.connections = self._get_connections()
 
         if connections:
             self._filter_connections(connections)
@@ -105,7 +105,8 @@ class DBConnectionManager:
                     env_var = password[2:-1]
                     info["password"] = urllib.parse.quote(os.environ[env_var])
                 else:
-                    info["password"] = self.security_manager.decrypt_password(password)
+                    if password != "":
+                        info["password"] = self.security_manager.decrypt_password(password)
 
             for key, value in info.items():
                 if key != "password":

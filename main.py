@@ -96,9 +96,13 @@ def main():
         args.connections,
         args.max_workers,
         args.save_path,
-        args.output_format,
     )
     add_connection_column = True if args.column_name else False
+    if args.output_format is not None:
+        output_format = args.output_format
+    else:
+        if args.save_path is not None:
+            output_format = Path(args.save_path).suffix[1:]
     try:
         df = runner.execute_query_multi_db(
             args.query,
@@ -114,7 +118,7 @@ def main():
             export_data(
                 args.save_path,
                 df,
-                args.output_format,
+                output_format,
                 args.single_file,
                 args.single_sheet,
                 args.column_name,
