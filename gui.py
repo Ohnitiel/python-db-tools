@@ -2,11 +2,9 @@ import threading
 import tomllib
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
-
 import customtkinter
 import pandas as pd
 from dotenv import load_dotenv
-
 from db_tools.database.runner import DBConnectionRunner
 from db_tools.exporter import export_data
 from db_tools.extras import Struct, find_root_dir, get_available_connections
@@ -22,9 +20,10 @@ class App(customtkinter.CTk):
         try:
             load_dotenv(find_root_dir(["pyproject.toml"]) / ".env")
         except Exception as e:
-            print(f"Could not load .env file: {e}")
+            error_msg = self.locale_config.messages.load_env_error.format(error=e)
+            print(error_msg)
 
-        self.title(self.locale_config.gui.title)
+        self.title(self.locale_config.app.title)
         self.geometry("1280x800")
         self.results_df = None
         self.connections_window = None
@@ -42,32 +41,37 @@ class App(customtkinter.CTk):
 
         # --- Connection Selector ---
         self.connection_names = sorted(get_available_connections())
+
         self.conn_label = customtkinter.CTkLabel(
             self.left_frame,
-            text=self.locale_config.gui.label.connections,
+            text=self.locale_config.labels.connections,
             font=customtkinter.CTkFont(size=16, weight="bold"),
         )
         self.conn_label.grid(row=0, column=0, padx=10, pady=(10, 5), sticky="w")
+
         self.conn_filter_entry = customtkinter.CTkEntry(
             self.left_frame,
-            placeholder_text=f"{self.locale_config.gui.placeholder.filter_connections}...",
+            placeholder_text=f"{self.locale_config.placeholders.filter_connections}...",
         )
         self.conn_filter_entry.grid(row=1, column=0, padx=10, pady=5, sticky="ew")
         self.conn_filter_entry.bind("<KeyRelease>", self._filter_connections)
+
         self.select_all_var = customtkinter.StringVar(value="off")
         self.select_all_checkbox = customtkinter.CTkCheckBox(
             self.left_frame,
-            text=self.locale_config.gui.label.select_all_connections,
+            text=self.locale_config.labels.select_all_connections,
             variable=self.select_all_var,
             onvalue="on",
             offvalue="off",
             command=self._toggle_select_all,
         )
         self.select_all_checkbox.grid(row=2, column=0, padx=10, pady=(5, 0), sticky="w")
+
         self.conn_list_frame = customtkinter.CTkScrollableFrame(
             self.left_frame, label_text=""
         )
         self.conn_list_frame.grid(row=3, column=0, padx=10, pady=5, sticky="nsew")
+
         self.conn_checkboxes = {}
         self._update_connection_list()
 
@@ -80,14 +84,19 @@ class App(customtkinter.CTk):
 
         # Environment
         self.env_label = customtkinter.CTkLabel(
-            self.options_frame, text=self.locale_config.gui.label.environment
+            self.options_frame, text=self.locale_config.labels.environment
         )
         self.env_label.grid(row=0, column=0, padx=(0, 5), pady=5, sticky="w")
-        self.environment_var = customtkinter.StringVar(value="staging")
+
+        self.environment_var = customtkinter.StringVar(value=self.locale_config.environments.staging)
         self.env_dropdown = customtkinter.CTkOptionMenu(
             self.options_frame,
             variable=self.environment_var,
-            values=["staging", "production", "replica"],
+            values=[
+                self.locale_config.environments.staging,
+                self.locale_config.environments.production,
+                self.locale_config.environments.replica
+                ],
         )
         self.env_dropdown.grid(row=0, column=1, padx=(0, 10), pady=5, sticky="ew")
 
@@ -95,7 +104,7 @@ class App(customtkinter.CTk):
         self.parallel_var = customtkinter.StringVar(value="on")
         self.parallel_checkbox = customtkinter.CTkCheckBox(
             self.options_frame,
-            text=self.locale_config.gui.label.run_in_parallel,
+            text=self.locale_config.labels.run_in_parallel,
             variable=self.parallel_var,
             onvalue="on",
             offvalue="off",
@@ -106,9 +115,10 @@ class App(customtkinter.CTk):
 
         # Max Workers
         self.max_workers_label = customtkinter.CTkLabel(
-            self.options_frame, text=f"{self.locale_config.gui.label.max_workers}:"
+            self.options_frame, text=f"{self.locale_config.labels.max_workers}:"
         )
         self.max_workers_label.grid(row=2, column=0, padx=(0, 5), pady=5, sticky="w")
+
         self.max_workers_var = customtkinter.StringVar(value="8")
         self.max_workers_entry = customtkinter.CTkEntry(
             self.options_frame, textvariable=self.max_workers_var
@@ -119,16 +129,17 @@ class App(customtkinter.CTk):
         self.cache_var = customtkinter.StringVar(value="on")
         self.cache_checkbox = customtkinter.CTkCheckBox(
             self.options_frame,
-            text=self.locale_config.gui.label.use_cache,
+            text=self.locale_config.cache.use,
             variable=self.cache_var,
             onvalue="on",
             offvalue="off",
         )
         self.cache_checkbox.grid(row=3, column=0, padx=(0, 10), pady=5, sticky="w")
+
         self.ignore_cache_var = customtkinter.StringVar(value="off")
         self.ignore_cache_checkbox = customtkinter.CTkCheckBox(
             self.options_frame,
-            text=self.locale_config.gui.label.ignore_cache,
+            text=self.locale_config.labels.ignore_cache,
             variable=self.ignore_cache_var,
             onvalue="on",
             offvalue="off",
@@ -139,9 +150,10 @@ class App(customtkinter.CTk):
 
         # Export
         self.output_format_label = customtkinter.CTkLabel(
-            self.options_frame, text=f"{self.locale_config.gui.label.output_format}:"
+            self.options_frame, text=f"{self.locale_config.labels.output_format}:"
         )
         self.output_format_label.grid(row=4, column=0, padx=(0, 5), pady=5, sticky="w")
+
         self.output_format_var = customtkinter.StringVar(value="xlsx")
         self.output_format_dropdown = customtkinter.CTkOptionMenu(
             self.options_frame,
@@ -155,7 +167,7 @@ class App(customtkinter.CTk):
         self.format_excel_var = customtkinter.StringVar(value="on")
         self.format_excel_checkbox = customtkinter.CTkCheckBox(
             self.options_frame,
-            text=self.locale_config.gui.label.format_excel,
+            text=self.locale_config.labels.format_excel,
             variable=self.format_excel_var,
             onvalue="on",
             offvalue="off",
@@ -167,7 +179,7 @@ class App(customtkinter.CTk):
         self.single_sheet_var = customtkinter.StringVar(value="on")
         self.single_sheet_checkbox = customtkinter.CTkCheckBox(
             self.options_frame,
-            text=self.locale_config.gui.label.single_sheet,
+            text=self.locale_config.formats.single_sheet,
             variable=self.single_sheet_var,
             onvalue="on",
             offvalue="off",
@@ -179,7 +191,7 @@ class App(customtkinter.CTk):
         self.single_file_var = customtkinter.StringVar(value="on")
         self.single_file_checkbox = customtkinter.CTkCheckBox(
             self.options_frame,
-            text=self.locale_config.gui.label.single_file,
+            text=self.locale_config.formats.single_file,
             variable=self.single_file_var,
             onvalue="on",
             offvalue="off",
@@ -190,12 +202,13 @@ class App(customtkinter.CTk):
 
         self.connection_column_label = customtkinter.CTkLabel(
             self.options_frame,
-            text=f"{self.locale_config.gui.label.connection_column}:",
+            text=f"{self.locale_config.labels.connection_column}:",
         )
         self.connection_column_label.grid(
             row=7, column=0, padx=(0, 5), pady=5, sticky="w"
         )
-        self.connection_column_var = customtkinter.StringVar(value="connection")
+
+        self.connection_column_var = customtkinter.StringVar(value=self.locale_config.placeholders.connection_column_name)
         self.connection_column_entry = customtkinter.CTkEntry(
             self.options_frame, textvariable=self.connection_column_var
         )
@@ -209,10 +222,11 @@ class App(customtkinter.CTk):
         )
         self.bottom_frame.grid(row=5, column=0, padx=10, pady=10, sticky="sew")
         self.bottom_frame.grid_columnconfigure(1, weight=1)
+
         self.commit_var = customtkinter.StringVar(value="off")
         self.commit_checkbox = customtkinter.CTkCheckBox(
             self.bottom_frame,
-            text=self.locale_config.gui.label.commit,
+            text=self.locale_config.labels.commit,
             variable=self.commit_var,
             onvalue="on",
             offvalue="off",
@@ -221,7 +235,7 @@ class App(customtkinter.CTk):
 
         self.manage_connections_button = customtkinter.CTkButton(
             self.bottom_frame,
-            text="Manage Connections",
+            text=self.locale_config.labels.manage_connections,
             command=self._open_connections_window,
         )
         self.manage_connections_button.grid(
@@ -230,7 +244,7 @@ class App(customtkinter.CTk):
 
         self.run_button = customtkinter.CTkButton(
             self.bottom_frame,
-            text=self.locale_config.gui.label.run_query,
+            text=self.locale_config.labels.run_query,
             command=self._run_query_callback,
         )
         self.run_button.grid(row=0, column=2, padx=(10, 0), pady=10, sticky="e")
@@ -245,13 +259,13 @@ class App(customtkinter.CTk):
             self.right_frame, height=150, border_width=2, font=("Consolas", 12)
         )
         self.query_box.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
-        self.query_box.insert("1.0", self.locale_config.gui.placeholder.query_input)
+        self.query_box.insert("1.0", self.locale_config.placeholders.query_input)
 
         self._create_results_table()
 
         self.save_button = customtkinter.CTkButton(
             self.right_frame,
-            text=self.locale_config.gui.label.save_results,
+            text=self.locale_config.labels.save_results,
             command=self._save_results,
             state="disabled",
         )
@@ -304,6 +318,7 @@ class App(customtkinter.CTk):
             table_frame, orient="vertical", command=self.results_table.yview
         )
         vsb.grid(row=0, column=1, sticky="ns")
+
         hsb = ttk.Scrollbar(
             table_frame, orient="horizontal", command=self.results_table.xview
         )
@@ -316,12 +331,16 @@ class App(customtkinter.CTk):
         checked_connections = {
             name for name, var in self.conn_checkboxes.items() if var.get() == "on"
         }
+
         for widget in self.conn_list_frame.winfo_children():
             widget.destroy()
+
         self.conn_checkboxes = {}
+
         visible_conns = [
             c for c in self.connection_names if filter_text.lower() in c.lower()
         ]
+
         for i, conn_name in enumerate(visible_conns):
             var = customtkinter.StringVar(
                 value="on" if conn_name in checked_connections else "off"
@@ -351,8 +370,8 @@ class App(customtkinter.CTk):
         ]
         if not selected_connections:
             messagebox.showwarning(
-                self.locale_config.gui.messagebox.title_no_connections,
-                self.locale_config.gui.messagebox.message_select_connection,
+                self.locale_config.messages.no_connections,
+                self.locale_config.messages.select_connection,
             )
             return
 
@@ -360,14 +379,15 @@ class App(customtkinter.CTk):
         print(query)
         if not query or query.startswith("--"):
             messagebox.showwarning(
-                self.locale_config.gui.messagebox.title_no_query,
-                self.locale_config.gui.messagebox.message_enter_query,
+                self.locale_config.messages.enter_query,
+                self.locale_config.messages.enter_query,
             )
             return
 
-        self.run_button.configure(state="disabled", text=f"{self.locale_config.gui.label.running}...")
+        self.run_button.configure(state="disabled", text=f"{self.locale_config.labels.running}...")
         self.save_button.configure(state="disabled")
         self.results_df = None
+
         # Clear previous results
         for item in self.results_table.get_children():
             self.results_table.delete(item)
@@ -387,16 +407,14 @@ class App(customtkinter.CTk):
         """Worker function to be run in a separate thread."""
         try:
             use_cache_callback = lambda: messagebox.askyesno(
-                "Cache Found",
-                "A cached result for this query was found. Do you want to use it?",
+                self.locale_config.cache.found_title,
+                self.locale_config.cache.found_message,
             )
-
             runner = DBConnectionRunner(
                 environment=self.environment_var.get(),
                 connections=connections,
                 max_workers=int(self.max_workers_var.get()),
             )
-
             results_df = runner.execute_query_multi_db(
                 query=query,
                 commit=commit_mode,
@@ -409,30 +427,30 @@ class App(customtkinter.CTk):
                 ignore_cache=self.ignore_cache_var.get() == "on",
                 use_cache_callback=use_cache_callback,
             )
-
             self.after(0, self._update_ui_after_query, results_df)
-
         except Exception as e:
             self.after(0, self._update_ui_after_query, e)
 
     def _update_ui_after_query(self: "App", result):
         """Receives results from worker thread and updates UI. Runs in main thread."""
-        self.run_button.configure(state="normal", text="Run Query")
+        self.run_button.configure(state="normal", text=self.locale_config.labels.run_query)
 
         if isinstance(result, Exception):
-            messagebox.showerror("Query Error", f"An error occurred:\n{str(result)}")
+            error_msg = self.locale_config.messages.query_error_message.format(error=str(result))
+            messagebox.showerror(self.locale_config.messages.query_error, error_msg)
             return
 
         if isinstance(result, pd.DataFrame):
             self.results_df = result
             if result.empty:
                 messagebox.showinfo(
-                    "No Results",
-                    "The query executed successfully but returned no data.",
+                    self.locale_config.messages.no_results,
+                    self.locale_config.messages.no_results_returned,
                 )
                 return
 
             self.save_button.configure(state="normal")
+
             # --- Populate Table ---
             self.results_table["columns"] = list(result.columns)
             for col in result.columns:
@@ -446,12 +464,15 @@ class App(customtkinter.CTk):
                 self.results_table.insert("", "end", values=list(row))
         else:
             messagebox.showinfo(
-                "Success", "DML query executed successfully on all connections."
+                self.locale_config.messages.success, self.locale_config.messages.dml_success
             )
 
     def _save_results(self: "App"):
         if self.results_df is None or self.results_df.empty:
-            messagebox.showwarning("No Results", "There are no results to save.")
+            messagebox.showwarning(
+                self.locale_config.messages.no_results,
+                self.locale_config.messages.no_results_save
+            )
             return
 
         file_path = filedialog.asksaveasfilename(
@@ -463,7 +484,6 @@ class App(customtkinter.CTk):
                 ("All files", "*.*"),
             ),
         )
-
         if not file_path:
             return
 
@@ -477,17 +497,17 @@ class App(customtkinter.CTk):
                 self.connection_column_var.get(),
                 self.format_excel_var.get() == "on",
             )
-            messagebox.showinfo("Success", f"Results successfully saved to {file_path}")
+            success_msg = self.locale_config.messages.save_success.format(file_path=file_path)
+            messagebox.showinfo(self.locale_config.messages.success, success_msg)
         except Exception as e:
+            error_msg = self.locale_config.messages.save_error_message.format(error=e)
             messagebox.showerror(
-                "Save Error", f"An error occurred while saving the file:\n{e}"
+                self.locale_config.messages.save_error, error_msg
             )
 
 
 if __name__ == "__main__":
     from db_tools.logger import setup_logging
-
     setup_logging()
-
     app = App()
     app.mainloop()
