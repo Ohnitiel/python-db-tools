@@ -75,3 +75,15 @@ success = "Sucesso"
 filter_connections = "Filtrar conexões"
 query_input = "-- Sua query aqui..."
 connection_column_name = "Conexão"
+
+[confirmation]
+title1 = "Confirmação 1/3"
+message1 = "Você está prestes a executar uma consulta que não é de seleção (non-SELECT) em modo de confirmação (commit). Tem certeza de que deseja continuar?"
+title2 = "Confirmação 2/3"
+message2 = "Esta ação pode modificar dados no banco de dados. Este é o seu segundo aviso. Continuar?"
+title3 = "Confirmação 3/3"
+message3 = "Confirmação final. Não há como desfazer. Tem certeza absoluta de que deseja executar esta consulta?"
+
+[buttons]
+yes = "Sim"
+no = "Não"

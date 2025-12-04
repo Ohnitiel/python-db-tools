@@ -64,7 +64,7 @@ class DBConnectionRunner(DBConnectionManager):
         with open(f"{cache_root}.pkl", "wb") as f:
             pickle.dump(failed_extractions, f)
 
-    def _verify_query_type(self: "DBConnectionRunner", query: str) -> QueryType:
+    def verify_query_type(self: "DBConnectionRunner", query: str) -> QueryType:
         # Strip query of comments
         clean_query = re.sub(
             r"--.*?$|/\*.*?\*/", "", query, flags=re.MULTILINE | re.DOTALL
@@ -197,7 +197,7 @@ class DBConnectionRunner(DBConnectionManager):
 
         data = {}
         failed_extractions = {}
-        query_type = self._verify_query_type(query)
+        query_type = self.verify_query_type(query)
         self.logger.info(f"Running query of type: {query_type}")
         if parallel:
             with ThreadPoolExecutor(max_workers=self.max_workers) as executor:

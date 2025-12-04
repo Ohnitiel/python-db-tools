@@ -75,3 +75,15 @@ success = "Success"
 filter_connections = "Filter connections"
 query_input = "-- Your query here..."
 connection_column_name = "Connection"
+
+[confirmation]
+title1 = "Confirmation 1/3"
+message1 = "You are about to run a non-SELECT query in commit mode. Are you sure you want to proceed?"
+title2 = "Confirmation 2/3"
+message2 = "This action can modify data in the database. This is your second warning. Continue?"
+title3 = "Confirmation 3/3"
+message3 = "Final confirmation. There is no undo. Are you absolutely sure you want to execute this query?"
+
+[buttons]
+yes = "Yes"
+no = "No"

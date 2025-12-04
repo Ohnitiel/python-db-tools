@@ -14,7 +14,19 @@ class ConnectionsWindow(customtkinter.CTkToplevel):
         self.master = master
         self.locale_config = self.master.locale_config
         self.title(self.locale_config.window.connections)
-        self.geometry("800x600")
+        
+        window_width = 800
+        window_height = 600
+
+        parent_x = master.winfo_x()
+        parent_y = master.winfo_y()
+        parent_width = master.winfo_width()
+        parent_height = master.winfo_height()
+
+        x = parent_x + (parent_width // 2) - (window_width // 2)
+        y = parent_y + (parent_height // 2) - (window_height // 2)
+
+        self.geometry(f"{window_width}x{window_height}+{x}+{y}")
         self.connections = get_available_connections()
         self.connections_path = find_root_dir(
             ["pyproject.toml"]
