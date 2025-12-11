@@ -1,5 +1,6 @@
 from enum import Enum, auto
 
+
 class QueryType(Enum):
     DQL = auto()
     DML = auto()

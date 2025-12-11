@@ -136,9 +136,7 @@ class App(customtkinter.CTk):
             offvalue="off",
             command=self._toggle_select_all,
         )
-        self.select_all_checkbox.grid(
-            row=2, column=0, padx=10, pady=(5, 0), sticky="w"
-        )
+        self.select_all_checkbox.grid(row=2, column=0, padx=10, pady=(5, 0), sticky="w")
 
         self.conn_list_frame = customtkinter.CTkScrollableFrame(
             self.left_frame, label_text=""
@@ -183,9 +181,9 @@ class App(customtkinter.CTk):
             # Create the full display string (e.g., "ID 1: Staging")
             display_string = f"ID {details['id']}: {localized_name}"
 
-            self.env_display_to_key[
-                display_string
-            ] = key  # Map display string to internal key
+            self.env_display_to_key[display_string] = (
+                key  # Map display string to internal key
+            )
             dropdown_display_values.append(display_string)
 
             # Check if this is the initial environment, so we can set the dropdown correctly
@@ -206,9 +204,7 @@ class App(customtkinter.CTk):
             values=dropdown_display_values,
             command=env_dropdown_callback,  # Assign the callback
         )
-        self.env_dropdown.set(
-            initial_display_value
-        )  # Set the displayed initial value
+        self.env_dropdown.set(initial_display_value)  # Set the displayed initial value
         self.env_dropdown.grid(row=0, column=1, padx=(0, 10), pady=5, sticky="ew")
 
         # Parallelism
@@ -365,9 +361,7 @@ class App(customtkinter.CTk):
         # --- Right Panel (Query and Results) ---
         self.right_frame = customtkinter.CTkFrame(self)
         self.right_frame.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
-        self.right_frame.grid_rowconfigure(
-            1, weight=1
-        )  # Make results table expandable
+        self.right_frame.grid_rowconfigure(1, weight=1)  # Make results table expandable
         self.right_frame.grid_columnconfigure(0, weight=1)
 
         self.query_box = customtkinter.CTkTextbox(

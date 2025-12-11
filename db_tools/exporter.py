@@ -63,7 +63,6 @@ def export_data(
     single_file: bool,
     single_sheet: bool,
     connection_column: Optional[str] = None,
-    format: bool = True,
 ):
     if (not single_file or not single_sheet) and connection_column is None:
         raise ValueError(
@@ -88,8 +87,7 @@ def export_data(
         if single_file and single_sheet:
             with pd.ExcelWriter(save_path, engine="openpyxl") as writer:
                 df.to_excel(writer, sheet_name="Data", index=False)
-                if format:
-                    format_excel(writer.book, df)
+                format_excel(writer.book, df)
 
         elif single_file:
             with pd.ExcelWriter(save_path, engine="openpyxl") as writer:
@@ -97,8 +95,7 @@ def export_data(
                     conn_df = df[df[connection_column] == connection]
                     conn_df = conn_df.drop(columns=[connection_column])
                     conn_df.to_excel(writer, sheet_name=connection, index=False)
-                if format:
-                    format_excel(writer.book, df)
+                format_excel(writer.book, df)
 
         elif single_sheet:
             for connection in df[connection_column].unique():
@@ -107,8 +104,8 @@ def export_data(
                     conn_df = df[df[connection_column] == connection]
                     conn_df = conn_df.drop(columns=[connection_column])
                     conn_df.to_excel(writer, index=False)
-                    if format:
-                        format_excel(writer.book, df)
+                    format_excel(writer.book, df)
+
     elif file_format == "json":
         df.to_json(save_path, orient="records", indent=4)
     elif file_format == "csv":

@@ -1,9 +1,10 @@
-import uuid
 import tomllib
-from pathlib import Path
+import uuid
 from tkinter import messagebox
+
 import customtkinter
 import tomli_w
+
 from ..extras import find_root_dir, get_available_connections
 from ..security import SecurityManager
 
@@ -14,7 +15,7 @@ class ConnectionsWindow(customtkinter.CTkToplevel):
         self.master = master
         self.locale_config = self.master.locale_config
         self.title(self.locale_config.window.connections)
-        
+
         window_width = 800
         window_height = 600
 
@@ -28,9 +29,9 @@ class ConnectionsWindow(customtkinter.CTkToplevel):
 
         self.geometry(f"{window_width}x{window_height}+{x}+{y}")
         self.connections = get_available_connections()
-        self.connections_path = find_root_dir(
-            ["pyproject.toml"]
-        ) / "config" / "database" / "connections"
+        self.connections_path = (
+            find_root_dir(["pyproject.toml"]) / "config" / "database" / "connections"
+        )
         self.security_manager = SecurityManager()
 
         self.tab_view = customtkinter.CTkTabview(self)
@@ -71,7 +72,9 @@ class ConnectionsWindow(customtkinter.CTkToplevel):
         self.form_frame.grid_columnconfigure(1, weight=1)
 
         # Display Name
-        self.name_label = customtkinter.CTkLabel(self.form_frame, text=f"{self.locale_config.labels.display_name}:")
+        self.name_label = customtkinter.CTkLabel(
+            self.form_frame, text=f"{self.locale_config.labels.display_name}:"
+        )
         self.name_label.grid(row=0, column=0, padx=10, pady=10, sticky="w")
         self.name_entry = customtkinter.CTkEntry(self.form_frame)
         self.name_entry.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
@@ -101,32 +104,42 @@ class ConnectionsWindow(customtkinter.CTkToplevel):
         self.replica_host_entry.grid(row=3, column=1, padx=10, pady=10, sticky="ew")
 
         # Port
-        self.port_label = customtkinter.CTkLabel(self.form_frame, text=f"{self.locale_config.labels.port}:")
+        self.port_label = customtkinter.CTkLabel(
+            self.form_frame, text=f"{self.locale_config.labels.port}:"
+        )
         self.port_label.grid(row=4, column=0, padx=10, pady=10, sticky="w")
         self.port_entry = customtkinter.CTkEntry(self.form_frame)
         self.port_entry.grid(row=4, column=1, padx=10, pady=10, sticky="ew")
 
         # Database
-        self.database_label = customtkinter.CTkLabel(self.form_frame, text=f"{self.locale_config.labels.database}:")
+        self.database_label = customtkinter.CTkLabel(
+            self.form_frame, text=f"{self.locale_config.labels.database}:"
+        )
         self.database_label.grid(row=5, column=0, padx=10, pady=10, sticky="w")
         self.database_entry = customtkinter.CTkEntry(self.form_frame)
         self.database_entry.grid(row=5, column=1, padx=10, pady=10, sticky="ew")
 
         # Username
-        self.username_label = customtkinter.CTkLabel(self.form_frame, text=f"{self.locale_config.labels.username}:")
+        self.username_label = customtkinter.CTkLabel(
+            self.form_frame, text=f"{self.locale_config.labels.username}:"
+        )
         self.username_label.grid(row=6, column=0, padx=10, pady=10, sticky="w")
         self.username_entry = customtkinter.CTkEntry(self.form_frame)
         self.username_entry.grid(row=6, column=1, padx=10, pady=10, sticky="ew")
 
         # Password
-        self.password_label = customtkinter.CTkLabel(self.form_frame, text=f"{self.locale_config.labels.password}:")
+        self.password_label = customtkinter.CTkLabel(
+            self.form_frame, text=f"{self.locale_config.labels.password}:"
+        )
         self.password_label.grid(row=7, column=0, padx=10, pady=10, sticky="w")
         self.password_entry = customtkinter.CTkEntry(self.form_frame, show="*")
         self.password_entry.grid(row=7, column=1, padx=10, pady=10, sticky="ew")
 
         # Save Button
         self.save_button = customtkinter.CTkButton(
-            self.form_frame, text=self.locale_config.labels.save, command=self._save_connection
+            self.form_frame,
+            text=self.locale_config.labels.save,
+            command=self._save_connection,
         )
         self.save_button.grid(row=8, column=0, columnspan=2, padx=10, pady=20)
 
@@ -164,9 +177,8 @@ class ConnectionsWindow(customtkinter.CTkToplevel):
                 data = tomllib.load(f)
                 conn_key = list(data.get("connections", {}).keys())[0]
                 if (
-                    data.get("connections", {})
-                    .get(conn_key, {})
-                    .get("name") == display_name
+                    data.get("connections", {}).get(conn_key, {}).get("name")
+                    == display_name
                 ):
                     return toml_file.stem
         return None
@@ -176,7 +188,11 @@ class ConnectionsWindow(customtkinter.CTkToplevel):
             widget.destroy()
 
         filename = self._get_filename_from_display_name(connection_name)
-        connection_not_found_details_text = self.locale_config.messages.connection_not_found.format(connection=connection_name)
+        connection_not_found_details_text = (
+            self.locale_config.messages.connection_not_found.format(
+                connection=connection_name
+            )
+        )
 
         if not filename:
             details_label = customtkinter.CTkLabel(
@@ -192,23 +208,21 @@ class ConnectionsWindow(customtkinter.CTkToplevel):
 
         details_text = f"{self.locale_config.labels.details}: {connection_name}\n\n"
         conn_details = config["connections"][filename]
-        details_text += f"{self.locale_config.labels.type}: {conn_details.get('type', 'N/A')}\n"
-        details_text += f"{self.locale_config.labels.port}: {conn_details.get('port', 'N/A')}\n"
+        details_text += (
+            f"{self.locale_config.labels.type}: {conn_details.get('type', 'N/A')}\n"
+        )
+        details_text += (
+            f"{self.locale_config.labels.port}: {conn_details.get('port', 'N/A')}\n"
+        )
         details_text += f"{self.locale_config.labels.database}: {conn_details.get('database', 'N/A')}\n"
         details_text += f"{self.locale_config.labels.username}: {conn_details.get('username', 'N/A')}\n"
 
         if "staging" in conn_details:
-            details_text += (
-                f"{self.locale_config.environments.staging}: {conn_details['staging'].get('host', 'N/A')}\n"
-            )
+            details_text += f"{self.locale_config.environments.staging}: {conn_details['staging'].get('host', 'N/A')}\n"
         if "production" in conn_details:
-            details_text += (
-                f"{self.locale_config.environments.production}: {conn_details['production'].get('host', 'N/A')}\n"
-            )
+            details_text += f"{self.locale_config.environments.production}: {conn_details['production'].get('host', 'N/A')}\n"
         if "replica" in conn_details:
-            details_text += (
-                f"{self.locale_config.environments.replica}: {conn_details['replica'].get('host', 'N/A')}\n"
-            )
+            details_text += f"{self.locale_config.environments.replica}: {conn_details['replica'].get('host', 'N/A')}\n"
 
         details_label = customtkinter.CTkLabel(
             self.connection_details_frame,
@@ -236,7 +250,9 @@ class ConnectionsWindow(customtkinter.CTkToplevel):
         self.tab_view.set(self.locale_config.labels.add_edit)
 
         filename = self._get_filename_from_display_name(connection_name)
-        error_msg = self.locale_config.messages.connection_load_error.format(connection=connection_name)
+        error_msg = self.locale_config.messages.connection_load_error.format(
+            connection=connection_name
+        )
 
         if not filename:
             messagebox.showerror(self.locale_config.messages.error, error_msg)
@@ -280,13 +296,17 @@ class ConnectionsWindow(customtkinter.CTkToplevel):
 
     def _remove_connection(self: "ConnectionsWindow", connection_name: str):
         filename = self._get_filename_from_display_name(connection_name)
-        error_msg = self.locale_config.messages.connection_not_found.format(connection=connection_name)
+        error_msg = self.locale_config.messages.connection_not_found.format(
+            connection=connection_name
+        )
 
         if not filename:
             messagebox.showerror(self.locale_config.messages.error, error_msg)
             return
 
-        confirm_msg = self.locale_config.messages.confirm_deletion_message.format(connection=connection_name)
+        confirm_msg = self.locale_config.messages.confirm_deletion_message.format(
+            connection=connection_name
+        )
         if messagebox.askyesno(
             self.locale_config.messages.confirm_deletion,
             confirm_msg,
@@ -296,14 +316,12 @@ class ConnectionsWindow(customtkinter.CTkToplevel):
                 self._refresh_connection_list()
                 for widget in self.connection_details_frame.winfo_children():
                     widget.destroy()
-                success_msg = self.locale_config.messages.connection_removed.format(connection=connection_name)
-                messagebox.showinfo(
-                    self.locale_config.messages.success, success_msg
+                success_msg = self.locale_config.messages.connection_removed.format(
+                    connection=connection_name
                 )
+                messagebox.showinfo(self.locale_config.messages.success, success_msg)
             except FileNotFoundError:
-                messagebox.showerror(
-                    self.locale_config.messages.error, error_msg
-                )
+                messagebox.showerror(self.locale_config.messages.error, error_msg)
 
     def _save_connection(self: "ConnectionsWindow"):
         display_name = self.name_entry.get()
@@ -319,7 +337,10 @@ class ConnectionsWindow(customtkinter.CTkToplevel):
             self.connection_name = str(uuid.uuid4())
 
         if not any([staging_host, production_host, replica_host]):
-            messagebox.showerror(self.locale_config.messages.error, self.locale_config.messages.at_least_one_host)
+            messagebox.showerror(
+                self.locale_config.messages.error,
+                self.locale_config.messages.at_least_one_host,
+            )
             return
 
         if not all([display_name, port, database, username]):
@@ -358,16 +379,18 @@ class ConnectionsWindow(customtkinter.CTkToplevel):
 
         if password:
             encrypted_password = self.security_manager.encrypt_password(password)
-            connection_data["connections"][self.connection_name][
-                "password"
-            ] = encrypted_password
+            connection_data["connections"][self.connection_name]["password"] = (
+                encrypted_password
+            )
 
         file_path = self.connections_path / f"{self.connection_name}.toml"
 
         try:
             with open(file_path, "wb") as f:
                 tomli_w.dump(connection_data, f)
-            success_msg = self.locale_config.messages.connection_saved.format(connection=display_name)
+            success_msg = self.locale_config.messages.connection_saved.format(
+                connection=display_name
+            )
             messagebox.showinfo(self.locale_config.messages.success, success_msg)
             self._refresh_connection_list()
             self.tab_view.set(self.locale_config.labels.connections)

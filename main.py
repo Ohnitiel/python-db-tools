@@ -45,43 +45,18 @@ def create_arguments() -> argparse.ArgumentParser:
     parser.add_argument(
         "--commit", action=argparse.BooleanOptionalAction, default=False
     )
-    parser.add_argument(
-        "--no-parallel", type=argparse.BooleanOptionalAction, default=False
-    )
     parser.add_argument("--output-format", type=str, choices=["xlsx", "json", "csv"])
-    parser.add_argument(
-        "--format-excel", action=argparse.BooleanOptionalAction, default=True
-    )
     parser.add_argument(
         "--single-sheet", action=argparse.BooleanOptionalAction, default=True
     )
     parser.add_argument(
         "--single-file", action=argparse.BooleanOptionalAction, default=True
     )
-    parser.add_argument("--column-name", type=str, default="connection")
-    parser.add_argument("-j", "--max-workers", type=int)
     parser.add_argument(
         "--ignore-cache", action=argparse.BooleanOptionalAction, default=False
     )
-    parser.add_argument("--cache", action=argparse.BooleanOptionalAction, default=True)
 
     return parser
-
-
-def validate_args(args: argparse.Namespace):
-    """
-    Validates the command-line arguments.
-
-    Args:
-        args: The parsed command-line arguments.
-    """
-    if args.save_path is not None:
-        args.save_path = Path(args.save_path)
-        if not args.save_path.parent.exists():
-            print("Diretório informado não existe!")
-            response = input("Deseja criá-lo?")
-            if response.lower() == "s":
-                args.save_path.parent.mkdirs(exist_ok=True, parents=True)
 
 
 def main():
@@ -90,14 +65,11 @@ def main():
     """
     parser = create_arguments()
     args = parser.parse_args()
-    validate_args(args)
     runner = DBConnectionRunner(
         args.environment,
         args.connections,
-        args.max_workers,
         args.save_path,
     )
-    add_connection_column = True if args.column_name else False
     if args.output_format is not None:
         output_format = args.output_format
     else:
@@ -107,12 +79,7 @@ def main():
         df = runner.execute_query_multi_db(
             args.query,
             args.commit,
-            not args.no_parallel,
-            add_connection_column,
-            args.column_name,
-            args.cache,
             args.ignore_cache,
-            use_cache_callback=lambda: input("Encontrado cache. Deseja utilizá-lo?").lower() == "s",
         )
         if args.save_path:
             export_data(
@@ -121,8 +88,7 @@ def main():
                 output_format,
                 args.single_file,
                 args.single_sheet,
-                args.column_name,
-                args.format_excel,
+                runner.configurations.column_name,
             )
     finally:
         runner.close_all()

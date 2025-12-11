@@ -7,10 +7,9 @@ from typing import Any
 from sqlalchemy.engine.base import Engine
 from sqlalchemy.engine.create import create_engine
 
-from ..extras import find_root_dir, Struct
+from ..extras import Struct, find_root_dir
 from ..logger import get_logger
 from ..security import SecurityManager
-
 
 
 class DBConnectionManager:
@@ -39,7 +38,7 @@ class DBConnectionManager:
         if connections:
             self._filter_connections(connections)
 
-        self.logger.info(f"Initialized manager for {len(self.connections)} connecions")
+        self.logger.info(f"Initialized manager for {len(self.connections)} connections")
 
         for connection, config in self.connections.items():
             config.connstring = self._build_connstring(config, environment)
@@ -106,7 +105,9 @@ class DBConnectionManager:
                     info["password"] = urllib.parse.quote(os.environ[env_var])
                 else:
                     if password != "":
-                        info["password"] = self.security_manager.decrypt_password(password)
+                        info["password"] = self.security_manager.decrypt_password(
+                            password
+                        )
 
             for key, value in info.items():
                 if key != "password":
@@ -145,10 +146,15 @@ class DBConnectionManager:
         Returns:
             A connection string.
         """
+        conn_formats = {
+            "postgresql": "postgresql+psycopg://{user}:{password}@{host}:{port}/{database}",
+            "mysql": "mysql+pymysql://{user}:{password}@{host}:{port}/{database}",
+            "sqlserver": "mssql+pyodbc://{user}:{password}@{host}:{port}/{database}?driver=ODBC+Driver+17+for+SQL+Server",
+            "sqlite": "sqlite:///{database}",
+            "oracle": "oracle+cx_oracle://{user}:{password}@{host}:{port}/{database}",
+        }
         db_type = config.type
-        if db_type == "postgresql":
-            conn_string = "postgresql+psycopg://"
-        else:
+        if db_type not in conn_formats:
             raise NotImplementedError(f"Connection type '{db_type}' not implemented!")
 
         host = config[environment].host
@@ -156,9 +162,14 @@ class DBConnectionManager:
         database = config.database
         username = getattr(config[environment], "username", config.get("username"))
         password = getattr(config[environment], "password", config.get("password"))
-        connection = f"{username}:{password}@{host}:{port}/{database}"
 
-        return conn_string + connection
+        return conn_formats[db_type].format(
+            host=host,
+            port=port,
+            database=database,
+            username=username,
+            password=password,
+        )
 
     def _create_engines(self: "DBConnectionManager") -> Struct:
         """

@@ -21,7 +21,6 @@ class DBConnectionRunner(DBConnectionManager):
     Runs queries on multiple database connections.
     """
 
-    max_workers: int
     save_path: Optional[Path]
     kwargs: dict
 
@@ -29,7 +28,6 @@ class DBConnectionRunner(DBConnectionManager):
         self: "DBConnectionRunner",
         environment: str,
         connections: list[str] = [],
-        max_workers: int = 8,
         save_path: Optional[Path] = None,
         **kwargs,
     ):
@@ -47,7 +45,6 @@ class DBConnectionRunner(DBConnectionManager):
         self.logger = get_logger(__name__)
 
         super().__init__(environment, connections)
-        self.max_workers = max_workers
         self.save_path = save_path
         self.kwargs = kwargs
 
@@ -87,7 +84,7 @@ class DBConnectionRunner(DBConnectionManager):
             "UPDATE": QueryType.DML,
             "INSERT": QueryType.DML,
             "DELETE": QueryType.DML,
-            "CREATE": QueryType.DDL
+            "CREATE": QueryType.DDL,
         }
 
         query_type = keyword_map.get(first_word)
@@ -161,12 +158,7 @@ class DBConnectionRunner(DBConnectionManager):
         self: "DBConnectionRunner",
         query: str,
         commit: bool = False,
-        parallel: bool = True,
-        add_connection_column: bool = True,
-        connection_column_name: str = "connection",
-        cache: bool = False,
         ignore_cache: bool = False,
-        use_cache_callback: callable = None,
     ) -> pd.DataFrame:
         """
         Executes a query on multiple database connections.
@@ -174,12 +166,7 @@ class DBConnectionRunner(DBConnectionManager):
         Args:
             query: The query to execute.
             commit: Whether to commit the transaction.
-            parallel: Whether to execute the queries in parallel.
-            add_connection_column: Whether to add a column with the connection name to the results.
-            connection_column_name: The name of the connection column.
-            cache: Whether to use the cache.
             ignore_cache: Whether to ignore the cache.
-            use_cache_callback: A function to call to ask the user to use the cache.
 
         Returns:
             A tuple containing a DataFrame with the results and a dictionary with any errors that occurred.
@@ -189,18 +176,20 @@ class DBConnectionRunner(DBConnectionManager):
                 f"{query}{','.join(self.connections)}".encode()
             ).hexdigest()
             cache_root = f".cache/{run_hash}"
-            Path(f"{cache_root}.parquet").parent.mkdir(parents=True, exist_ok=True)
+            cache_path = Path(f"{cache_root}.parquet")
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
 
-            if Path(f"{cache_root}.parquet").exists():
-                if use_cache_callback and use_cache_callback():
-                    return pd.read_parquet(f"{cache_root}.parquet")
+            if cache_path.exists():
+                return pd.read_parquet(f"{cache_root}.parquet")
 
         data = {}
         failed_extractions = {}
         query_type = self.verify_query_type(query)
         self.logger.info(f"Running query of type: {query_type}")
-        if parallel:
-            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+        if self.configurations.parallel:
+            with ThreadPoolExecutor(
+                max_workers=self.configurations.max_workers
+            ) as executor:
                 future_results = {}
                 for connection, config in self.connections.items():
                     future = executor.submit(
@@ -216,8 +205,7 @@ class DBConnectionRunner(DBConnectionManager):
                         connection,
                         data,
                         failed_extractions,
-                        connection_column_name,
-                        add_connection_column,
+                        self.configurations.column_name,
                     )
 
         else:
@@ -228,8 +216,7 @@ class DBConnectionRunner(DBConnectionManager):
                     connection,
                     data,
                     failed_extractions,
-                    connection_column_name,
-                    add_connection_column,
+                    self.configurations.column_name,
                 )
 
         if not data:
@@ -237,7 +224,7 @@ class DBConnectionRunner(DBConnectionManager):
         else:
             df = pd.concat(data.values(), ignore_index=True)
 
-        if cache:
+        if self.configurations.cache:
             run_hash = hashlib.sha256(
                 f"{query}{','.join(self.connections)}".encode()
             ).hexdigest()
@@ -252,15 +239,13 @@ class DBConnectionRunner(DBConnectionManager):
         data: dict[str, pd.DataFrame],
         failed_extractions: dict[Any, Any],
         connection_column_name: str,
-        add_connection_column: bool = True,
     ) -> tuple[dict, dict]:
         if result["success"]:
             self.logger.info(f"<-- SUCCESS from connection: {connection}")
             # DML queries return None, so we handle that case
             if result.get("data") is not None:
                 df = result["data"]
-                if add_connection_column:
-                    df[connection_column_name] = connection
+                df[connection_column_name] = connection
                 data[connection] = df
         else:
             # Error is already logged in execute_query

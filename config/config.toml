@@ -1,4 +1,8 @@
+cache = true
+column_name = "connection"
 locale = "pt_BR"
+max_workers = 8
+parallel = true
 
 [paths]
 database = "database"
