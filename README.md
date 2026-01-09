@@ -1,6 +1,5 @@
-# DB Tools
 
-A powerful Python tool for executing SQL queries across multiple database connections simultaneously. This tool is designed for data analysts, engineers, and developers who need to run the same query against multiple databases with identical schemas.
+A simple internal tool I developed in order to help my workflow first (CLI) then my coworkers (vibe coded GUI).
 
 ## Features
 
@@ -169,15 +168,3 @@ The project follows a modular architecture:
 - `db_tools/gui/`: GUI components using CustomTkinter
 - `db_tools/exporter.py`: Result export functionality
 - `db_tools/security.py`: Password encryption/decryption
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## License
-
-[Add your license information here]
